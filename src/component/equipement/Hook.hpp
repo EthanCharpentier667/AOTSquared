@@ -18,11 +18,14 @@
 #include "../physics/Raycast.hpp"
 #include "Raylib.hpp"
 
+namespace Object::Component {
+    class Transform;
+}
+
 namespace aot::gear {
     class Hook : public AMonoBehavior {
       public:
-        Hook(Engine::Core &core,
-             std::optional<Engine::Entity> anchor = std::nullopt);
+        Hook(std::optional<Engine::Entity> anchor = std::nullopt);
         ~Hook() override = default;
 
         void Start(Engine::Core &core) override;
@@ -38,12 +41,16 @@ namespace aot::gear {
 
         aot::physics::Raycast *grappleRaycast = nullptr;
         aot::physics::LineRenderer *grappleLine = nullptr;
+        aot::camera::RaylibCamera *_camera = nullptr;
+        aot::character::Rigidbody *_rb = nullptr;
+        Object::Component::Transform *transform = nullptr;
 
       private:
         std::optional<Engine::Entity> _anchor;
         Vector3 grapplePoint;
         float grapplingCdTimer = 0.0f;
         bool grappling = false;
+        float overshootYAxis = 5.0f;
 
         void startGrappling(Engine::Core &core);
         void executeGrapple(Engine::Core &core);

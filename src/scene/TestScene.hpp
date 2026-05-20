@@ -18,10 +18,8 @@
 #include "../component/physics/Raycast.hpp"
 #include "../plugin/render/Renders.hpp"
 #include "../system/CameraSystem.hpp"
-#include "../system/ControllerSystem.hpp"
 #include "../system/LineRendererSystem.hpp"
 #include "../system/RaycastSystem.hpp"
-#include "../system/RigidbodySystem.hpp"
 #include "Object.hpp"
 #include "Raylib.hpp"
 #include "Relationship.hpp"
@@ -54,7 +52,7 @@ namespace aot::plugin::scene {
             guntipTransform.SetPosition({rigidBody.position.x - 0.5f,
                                          rigidBody.position.y - 1.0f,
                                          rigidBody.position.z});
-            player.AddComponent<aot::gear::Hook>(core, guntip);
+            player.AddComponent<aot::gear::Hook>(guntip);
             auto cameraEntity = core.CreateEntity();
 
             Camera cam = {
@@ -73,11 +71,6 @@ namespace aot::plugin::scene {
             auto &fixedTimeScheduler =
                 core.GetScheduler<Engine::Scheduler::FixedTimeUpdate>();
             fixedTimeScheduler.SetTickRate(1.0f / 120.0f);
-
-            core.RegisterSystem<Engine::Scheduler::FixedTimeUpdate>(
-                ControllerSystem);
-            core.RegisterSystem<Engine::Scheduler::FixedTimeUpdate>(
-                RigidbodySystem);
             core.RegisterSystem<Engine::Scheduler::FixedTimeUpdate>(
                 CameraSystem);
             core.RegisterSystem<Engine::Scheduler::FixedTimeUpdate>(

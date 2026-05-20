@@ -1,17 +1,19 @@
-/*
-** EPITECH PROJECT, 2026
-** Aot
-** File description:
-** Controller
-*/
-
 #pragma once
 
-#include "Raylib.hpp"
+#include "../AMonoBehavior.hpp"
 
 namespace aot::character {
 
-    struct Controller {
+    class Controller : public AMonoBehavior {
+      public:
+        Controller();
+        ~Controller() override = default;
+
+        void Start(Engine::Core &core) override;
+        void Update(Engine::Core &core) override;
+        void FixedUpdate(Engine::Core &core) override;
+        void Stop(Engine::Core &core) override;
+
         float headLerp = STAND_HEIGHT;
         float walkLerp = 0.0f;
         float headTimer = 0.0f;

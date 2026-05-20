@@ -8,27 +8,55 @@
 #ifndef AMONOBEHAVIOR_HPP_
 #define AMONOBEHAVIOR_HPP_
 
+#include <algorithm>
+#include <functional>
+#include <vector>
+
 #include "IMonoBehavior.hpp"
 #include "Raylib.hpp"
 
 namespace aot {
     class AMonoBehavior : public IMonoBehavior {
       public:
-        AMonoBehavior(Engine::Core &core) {
-            core.RegisterSystem<Engine::Scheduler::Startup>(
-                [this](Engine::Core &engineCore) { Start(engineCore); });
-            core.RegisterSystem<Engine::Scheduler::Update>(
-                [this](Engine::Core &engineCore) {
-                    Update(engineCore);
-                    ProcessInvokeQueue();
-                });
-            core.RegisterSystem<Engine::Scheduler::FixedTimeUpdate>(
-                [this](Engine::Core &engineCore) { FixedUpdate(engineCore); });
-            core.RegisterSystem<Engine::Scheduler::Shutdown>(
-                [this](Engine::Core &engineCore) { Stop(engineCore); });
+        AMonoBehavior() {
+            GetInstances().push_back(this);
         };
-        ~AMonoBehavior() override = default;
+        ~AMonoBehavior() override {
+            auto &instances = GetInstances();
+            instances.erase(
+                std::remove(instances.begin(), instances.end(), this),
+                instances.end());
+        }
 
+        static std::vector<AMonoBehavior *> &GetInstances() {
+            static std::vector<AMonoBehavior *> instances;
+            return instances;
+        }
+
+        void EnsureStarted(Engine::Core &core) {
+            if (started)
+                return;
+
+            Start(core);
+            started = true;
+        }
+
+      protected:
+        template <typename T>
+        void ResolveSelf(Engine::Core &core) {
+            auto &registry = core.GetRegistry();
+            auto view = registry.view<T>();
+
+            for (auto e : view) {
+                if (&view.template get<T>(e) == this) {
+                    self = e;
+                    return;
+                }
+            }
+            Log::Error("MonoBehavior instance not found in registry");
+        }
+
+      public:
         void Start(Engine::Core &core) override {
             (void)core;
         }
@@ -51,15 +79,20 @@ namespace aot {
 
         void ProcessInvokeQueue() {
             float delta = GetFrameTime();
+            std::vector<std::function<void(void)>> callbacksToRun;
 
             for (auto it = invokeQueue.begin(); it != invokeQueue.end();) {
                 it->timer -= delta;
                 if (it->timer <= 0.0f) {
-                    it->callback();
+                    callbacksToRun.push_back(std::move(it->callback));
                     it = invokeQueue.erase(it);
                 } else {
                     ++it;
                 }
+            }
+
+            for (auto &callback : callbacksToRun) {
+                callback();
             }
         }
 
@@ -70,6 +103,8 @@ namespace aot {
         };
 
         std::vector<InvokeEvent> invokeQueue;
+        Engine::Id self;
+        bool started = false;
     };
 }  // namespace aot
 

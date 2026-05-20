@@ -7,6 +7,7 @@
 
 #include "Raylib.hpp"
 #include "plugin/Core.hpp"
+#include "plugin/MonoBehivor.hpp"
 #include "plugin/PluginScene.hpp"
 #include "resource/SceneManager.hpp"
 #include "scene/TestScene.hpp"
@@ -24,10 +25,9 @@ int main(void) {
     Engine::Core core;
 
     core.AddPlugins<aot::plugin::raylib::RaylibPlugin, aot::plugin::Core,
-                    Scene::Plugin>();
+                    Scene::Plugin, aot::plugin::MonoBehivor>();
 
     core.RegisterSystem<Engine::Scheduler::Startup>(Setup);
-
     core.Run();
 
     return 0;
