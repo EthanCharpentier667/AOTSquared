@@ -12,6 +12,7 @@
 #include "../component/character/Controller.hpp"
 #include "../component/character/Rigidbody.hpp"
 #include "../component/equipement/Hook.hpp"
+#include "../component/physics/ChildOffset.hpp"
 #include "../component/physics/Collider.hpp"
 #include "../component/physics/LineRenderer.hpp"
 #include "../component/physics/Raycast.hpp"
@@ -21,7 +22,9 @@
 #include "../system/LineRendererSystem.hpp"
 #include "../system/RaycastSystem.hpp"
 #include "../system/RigidbodySystem.hpp"
+#include "Object.hpp"
 #include "Raylib.hpp"
+#include "Relationship.hpp"
 #include "utils/AScene.hpp"
 
 namespace aot::plugin::scene {
@@ -34,13 +37,24 @@ namespace aot::plugin::scene {
             Log::Info("TestScene created");
 
             auto player = core.CreateEntity();
+            player.AddComponent<Object::Component::Transform>();
             auto &rigidBody = player.AddComponent<aot::character::Rigidbody>();
             auto &controller =
                 player.AddComponent<aot::character::Controller>();
             auto &raycast = player.AddComponent<aot::physics::Raycast>();
             player.AddComponent<aot::physics::LineRenderer>();
-            player.AddComponent<aot::gear::Hook>(core);
 
+            auto guntip = core.CreateEntity();
+            Relationship::Utils::SetChildOf(guntip, player);
+            guntip.AddComponent<aot::physics::ChildOffset>();
+            player.AddComponent<aot::physics::ChildOffset>();
+
+            auto &guntipTransform =
+                guntip.AddComponent<Object::Component::Transform>();
+            guntipTransform.SetPosition({rigidBody.position.x - 0.5f,
+                                         rigidBody.position.y - 1.0f,
+                                         rigidBody.position.z});
+            player.AddComponent<aot::gear::Hook>(core, guntip);
             auto cameraEntity = core.CreateEntity();
 
             Camera cam = {

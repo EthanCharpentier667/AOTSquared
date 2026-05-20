@@ -8,10 +8,12 @@
 #pragma once
 
 #include <functional>
+#include <optional>
 #include <vector>
 
 #include "../AMonoBehavior.hpp"
 #include "../camera/RaylibCamera.hpp"
+#include "../character/Rigidbody.hpp"
 #include "../physics/LineRenderer.hpp"
 #include "../physics/Raycast.hpp"
 #include "Raylib.hpp"
@@ -19,7 +21,8 @@
 namespace aot::gear {
     class Hook : public AMonoBehavior {
       public:
-        using AMonoBehavior::AMonoBehavior;
+        Hook(Engine::Core &core,
+             std::optional<Engine::Entity> anchor = std::nullopt);
         ~Hook() override = default;
 
         void Start(Engine::Core &core) override;
@@ -37,6 +40,7 @@ namespace aot::gear {
         aot::physics::LineRenderer *grappleLine = nullptr;
 
       private:
+        std::optional<Engine::Entity> _anchor;
         Vector3 grapplePoint;
         float grapplingCdTimer = 0.0f;
         bool grappling = false;

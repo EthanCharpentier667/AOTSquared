@@ -29,3 +29,4 @@
 #define NORMALIZE_INPUT 0
 
 #include "Engine.hpp"
+#include "maths/RaylibMaths.hpp"

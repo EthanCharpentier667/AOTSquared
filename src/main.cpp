@@ -10,10 +10,14 @@
 #include "plugin/PluginScene.hpp"
 #include "resource/SceneManager.hpp"
 #include "scene/TestScene.hpp"
+#include "system/ChildFollowParentSystem.hpp"
+
 void Setup(Engine::Core &core) {
     core.GetResource<Scene::Resource::SceneManager>()
         .RegisterScene<aot::plugin::scene::TestScene>("TestScene");
     core.GetResource<Scene::Resource::SceneManager>().SetNextScene("TestScene");
+    core.RegisterSystem<Engine::Scheduler::FixedTimeUpdate>(
+        ChildFollowParentSystem);
 }
 
 int main(void) {

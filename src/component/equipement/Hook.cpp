@@ -9,7 +9,13 @@
 
 #include <sstream>
 
+#include "Object.hpp"
+
 namespace aot::gear {
+
+    Hook::Hook(Engine::Core &core, std::optional<Engine::Entity> anchor)
+        : AMonoBehavior(core), _anchor(anchor) {
+    }
 
     void Hook::Start(Engine::Core &core) {
         auto &registry = core.GetRegistry();
@@ -30,6 +36,37 @@ namespace aot::gear {
         }
     }
 
+    static Vector3 getGuntipPosition(Engine::Core::Registry &registry,
+                                     std::optional<Engine::Entity> entity) {
+        if (entity.has_value()) {
+            Log::Info("Getting guntip position from entity");
+            auto transform =
+                entity.value().TryGetComponent<Object::Component::Transform>();
+            if (transform) {
+                Log::Info("Guntip position: " +
+                          std::to_string(transform->GetPosition().x) + ", " +
+                          std::to_string(transform->GetPosition().y) + ", " +
+                          std::to_string(transform->GetPosition().z));
+                return aot::RaylibMaths::toRayVector3(transform->GetPosition());
+            }
+            return getGuntipPosition(registry, std::nullopt);
+        } else {
+            Log::Warning(
+                "Guntip entity not found, trying to get camera position as "
+                "fallback");
+            auto view = registry.view<aot::camera::RaylibCamera>();
+
+            if (view.begin() != view.end()) {
+                auto entity = *view.begin();
+                auto &rayCamera =
+                    view.get<aot::camera::RaylibCamera>(entity).camera;
+                return rayCamera.position;
+            }
+        }
+        Log::Warning("Failed to get guntip position, returning zero vector");
+        return {0.0f, 0.0f, 0.0f};
+    }
+
     void Hook::Update(Engine::Core &core) {
         if (IsKeyPressed(KEY_E)) {
             if (!grappling) {
@@ -41,6 +78,12 @@ namespace aot::gear {
 
         if (grapplingCdTimer > 0.0f)
             grapplingCdTimer -= GetFrameTime();
+
+        if (grappling && grappleLine) {
+            grappleLine->startPoint =
+                getGuntipPosition(core.GetRegistry(), _anchor);
+            grappleLine->endPoint = grapplePoint;
+        }
     }
 
     void Hook::FixedUpdate(Engine::Core &core) {
@@ -79,7 +122,7 @@ namespace aot::gear {
         auto entity = *view.begin();
         auto &rayCamera = view.get<aot::camera::RaylibCamera>(entity).camera;
 
-        grappleRaycast->origin = rayCamera.position;
+        grappleRaycast->origin = getGuntipPosition(core.GetRegistry(), _anchor);
         grappleRaycast->direction = Vector3Normalize(
             Vector3Subtract(rayCamera.target, rayCamera.position));
         grappleRaycast->maxDistance = maxGrapDistance;
@@ -92,7 +135,8 @@ namespace aot::gear {
                 grapplePoint = grappleRaycast->result.point;
                 if (grappleLine) {
                     grappleLine->enabled = true;
-                    grappleLine->startPoint = grappleRaycast->origin;
+                    grappleLine->startPoint =
+                        getGuntipPosition(core.GetRegistry(), _anchor);
                     grappleLine->endPoint = grapplePoint;
                     grappleLine->width = 0.2f;
                     grappleLine->color = BLACK;

@@ -2,12 +2,14 @@
 
 #include "../component/character/Controller.hpp"
 #include "../component/character/Rigidbody.hpp"
+#include "Object.hpp"
 
 void RigidbodySystem(Engine::Core &core) {
     auto &registry = core.GetRegistry();
 
     auto view =
-        registry.view<aot::character::Rigidbody, aot::character::Controller>();
+        registry.view<aot::character::Rigidbody, aot::character::Controller,
+                      Object::Component::Transform>();
 
     for (auto entity : view) {
         auto &rigidBody = view.get<aot::character::Rigidbody>(entity);
@@ -63,5 +65,14 @@ void RigidbodySystem(Engine::Core &core) {
             rigidBody.velocity.y = 0.0f;
             rigidBody.isGrounded = true;  // Enable jumping
         }
+
+        auto &transform = view.get<Object::Component::Transform>(entity);
+
+        transform.SetRotation(aot::RaylibMaths::toGlmQuaternion(
+            {controller.lookRotation.y, controller.lookRotation.x, 0.0f,
+             0.0f}));
+        transform.SetPosition(aot::RaylibMaths::toGlmVector3(
+            {rigidBody.position.x, rigidBody.position.y,
+             rigidBody.position.z}));
     }
 }
