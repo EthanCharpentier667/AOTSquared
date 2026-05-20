@@ -39,21 +39,8 @@ namespace aot::gear {
             }
         }
 
-        const float delta = GetFrameTime();
-
         if (grapplingCdTimer > 0.0f)
-            grapplingCdTimer -= delta;
-
-        for (auto it = invokeQueue.begin(); it != invokeQueue.end();) {
-            it->timer -= delta;
-            if (it->timer <= 0.0f) {
-                auto callback = it->callback;
-                it = invokeQueue.erase(it);
-                callback();
-            } else {
-                ++it;
-            }
-        }
+            grapplingCdTimer -= GetFrameTime();
     }
 
     void Hook::FixedUpdate(Engine::Core &core) {
@@ -73,10 +60,6 @@ namespace aot::gear {
             grappleLine = registry.try_get<aot::physics::LineRenderer>(entity);
             break;
         }
-    }
-
-    void Hook::Invoke(float delay, std::function<void(void)> callback) {
-        invokeQueue.push_back(InvokeEvent{delay, std::move(callback)});
     }
 
     void Hook::startGrappling(Engine::Core &core) {

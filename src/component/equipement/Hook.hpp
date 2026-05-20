@@ -41,16 +41,8 @@ namespace aot::gear {
         float grapplingCdTimer = 0.0f;
         bool grappling = false;
 
-        struct InvokeEvent {
-            float timer;
-            std::function<void(void)> callback;
-        };
-
-        std::vector<InvokeEvent> invokeQueue;
-
         void startGrappling(Engine::Core &core);
         void executeGrapple(Engine::Core &core);
         void stopGrappling();
-        void Invoke(float delay, std::function<void(void)> callback);
     };
 }  // namespace aot::gear
