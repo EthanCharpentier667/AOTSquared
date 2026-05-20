@@ -11,9 +11,15 @@
 #include "../component/camera/RaylibCamera.hpp"
 #include "../component/character/Controller.hpp"
 #include "../component/character/Rigidbody.hpp"
+#include "../component/equipement/Hook.hpp"
+#include "../component/physics/Collider.hpp"
+#include "../component/physics/LineRenderer.hpp"
+#include "../component/physics/Raycast.hpp"
 #include "../plugin/render/Renders.hpp"
 #include "../system/CameraSystem.hpp"
 #include "../system/ControllerSystem.hpp"
+#include "../system/LineRendererSystem.hpp"
+#include "../system/RaycastSystem.hpp"
 #include "../system/RigidbodySystem.hpp"
 #include "Raylib.hpp"
 #include "utils/AScene.hpp"
@@ -31,6 +37,9 @@ namespace aot::plugin::scene {
             auto &rigidBody = player.AddComponent<aot::character::Rigidbody>();
             auto &controller =
                 player.AddComponent<aot::character::Controller>();
+            auto &raycast = player.AddComponent<aot::physics::Raycast>();
+            player.AddComponent<aot::physics::LineRenderer>();
+            player.AddComponent<aot::gear::Hook>(core);
 
             auto cameraEntity = core.CreateEntity();
 
@@ -57,6 +66,16 @@ namespace aot::plugin::scene {
                 RigidbodySystem);
             core.RegisterSystem<Engine::Scheduler::FixedTimeUpdate>(
                 CameraSystem);
+            core.RegisterSystem<Engine::Scheduler::FixedTimeUpdate>(
+                RaycastSystem);
+
+            SetupGround(core);
+            SetupTowers(core);
+
+            raycast.layerMask =
+                static_cast<uint32_t>(aot::physics::ColliderTag::Ground |
+                                      aot::physics::ColliderTag::Tower |
+                                      aot::physics::ColliderTag::Enemy);
 
             core.RegisterSystem<aot::plugin::render::Render>(
                 [this](Engine::Core &core) {
@@ -66,21 +85,53 @@ namespace aot::plugin::scene {
                         auto &camera =
                             view.get<aot::camera::RaylibCamera>(entity).camera;
                         BeginMode3D(camera);
-                        DrawLevel();
+                        DrawLevel(core);
                         EndMode3D();
                     }
                 });
+            core.RegisterSystem<aot::plugin::render::Render>(
+                LineRendererSystem);
         }
+
         void _onDestroy(Engine::Core &core) final {
+            (void)core;
         }
 
       private:
-        void DrawLevel(void) {
+        void SetupGround(Engine::Core &core) {
+            auto groundCollider = core.CreateEntity();
+            auto &groundBox =
+                groundCollider.AddComponent<aot::physics::BoxCollider>();
+            groundBox.position = {0.0f, -0.5f, 0.0f};
+            groundBox.size = {500.0f, 1.0f, 500.0f};
+            groundBox.tag = aot::physics::ColliderTag::Ground;
+        }
+
+        void SetupTowers(Engine::Core &core) {
+            Vector3 towerPositions[] = {
+                {16.0f, 16.0f, 16.0f},
+                {-16.0f, 16.0f, 16.0f},
+                {-16.0f, 16.0f, -16.0f},
+                {16.0f, 16.0f, -16.0f},
+            };
+            Vector3 towerSize = {16.0f, 32.0f, 16.0f};
+
+            for (auto towerPos : towerPositions) {
+                auto towerCollider = core.CreateEntity();
+                auto &towerBox =
+                    towerCollider.AddComponent<aot::physics::BoxCollider>();
+                towerBox.position = towerPos;
+                towerBox.size = towerSize;
+                towerBox.tag = aot::physics::ColliderTag::Tower |
+                               aot::physics::ColliderTag::Grappleable;
+            }
+        }
+
+        void DrawLevel(Engine::Core &core) {
             const int floorExtent = 25;
             const float tileSize = 5.0f;
             const Color tileColor1 = (Color){150, 200, 200, 255};
 
-            // Floor tiles
             for (int y = -floorExtent; y < floorExtent; y++) {
                 for (int x = -floorExtent; x < floorExtent; x++) {
                     if ((y & 1) && (x & 1)) {
@@ -93,26 +144,24 @@ namespace aot::plugin::scene {
                 }
             }
 
-            const Vector3 towerSize = (Vector3){16.0f, 32.0f, 16.0f};
             const Color towerColor = (Color){150, 200, 200, 255};
 
-            Vector3 towerPos = (Vector3){16.0f, 16.0f, 16.0f};
-            DrawCubeV(towerPos, towerSize, towerColor);
-            DrawCubeWiresV(towerPos, towerSize, DARKBLUE);
+            auto &registry = core.GetRegistry();
+            auto view = registry.view<aot::physics::BoxCollider>();
 
-            towerPos.x *= -1;
-            DrawCubeV(towerPos, towerSize, towerColor);
-            DrawCubeWiresV(towerPos, towerSize, DARKBLUE);
+            for (auto entity : view) {
+                auto &box = view.get<aot::physics::BoxCollider>(entity);
 
-            towerPos.z *= -1;
-            DrawCubeV(towerPos, towerSize, towerColor);
-            DrawCubeWiresV(towerPos, towerSize, DARKBLUE);
+                if (!(static_cast<uint32_t>(box.tag) &
+                      static_cast<uint32_t>(
+                          aot::physics::ColliderTag::Tower))) {
+                    continue;
+                }
 
-            towerPos.x *= -1;
-            DrawCubeV(towerPos, towerSize, towerColor);
-            DrawCubeWiresV(towerPos, towerSize, DARKBLUE);
+                DrawCubeV(box.position, box.size, towerColor);
+                DrawCubeWiresV(box.position, box.size, DARKBLUE);
+            }
 
-            // Red sun
             DrawSphere((Vector3){300.0f, 300.0f, 0.0f}, 100.0f,
                        (Color){255, 0, 0, 255});
         }
