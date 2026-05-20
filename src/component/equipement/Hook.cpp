@@ -20,7 +20,6 @@ namespace aot::gear {
     void Hook::Start(Engine::Core &core) {
         ResolveSelf<Hook>(core);
         auto &registry = core.GetRegistry();
-        auto view = registry.view<aot::gear::Hook>();
 
         _rb = registry.try_get<aot::character::Rigidbody>(self);
         transform = registry.try_get<Object::Component::Transform>(self);
@@ -53,14 +52,11 @@ namespace aot::gear {
     }
 
     void Hook::Update(Engine::Core &core) {
-        if (IsKeyPressed(KEY_E)) {
-            if (!grappling) {
-                startGrappling(core);
-            }
-        } else {
-            if (grappling) {
-                stopGrappling();
-            }
+        if (IsKeyPressed(KEY_E) && !grappling) {
+            startGrappling(core);
+        }
+        if (IsKeyReleased(KEY_E) && grappling) {
+            stopGrappling();
         }
 
         if (grapplingCdTimer > 0.0f)
@@ -120,6 +116,8 @@ namespace aot::gear {
         Log::Info("Grapple raycast");
 
         Invoke(grappleTimeDelay, [this, &core]() {
+            if (!grappling)
+                return;
             if (grappleRaycast->result.hit) {
                 grapplePoint = grappleRaycast->result.point;
                 if (grappleLine) {
@@ -151,12 +149,17 @@ namespace aot::gear {
         Log::Info("Grapple point relative Y position: " +
                   std::to_string(grapplePointRelativeYPos));
         _rb->JumpToPosition(grapplePoint, highestPointOnArc);
-        Invoke(1.0f, [this]() { stopGrappling(); });
     }
 
     void Hook::stopGrappling() {
         grappling = false;
         grapplingCdTimer = grapplingCd;
+        if (_rb) {
+            _rb->StopGrapple();
+        }
+        if (grappleRaycast) {
+            grappleRaycast->active = false;
+        }
         if (grappleLine) {
             grappleLine->enabled = false;
         }

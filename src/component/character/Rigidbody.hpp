@@ -27,16 +27,21 @@ namespace aot::character {
         void Stop(Engine::Core &core) override;
 
         void JumpToPosition(Vector3 targetPosition, float trajectoryHeight);
+        void StopGrapple();
 
         Vector3 position = {0.0f, 0.0f, 0.0f};
         Vector3 velocity = {0.0f, 0.0f, 0.0f};
         bool isGrounded = true;
-        bool enableMovementOnNextTouch = false;
+        bool activeGrapple = false;
         MouvementState state = MouvementState::Idle;
 
       private:
         Controller *_controller = nullptr;
         Object::Component::Transform *_transform = nullptr;
+        Vector3 grappleTarget = {0.0f, 0.0f, 0.0f};
+        float grapplePullStrength = 60.0f;
+        float grappleMaxSpeed = 55.0f;
+        float grappleStopDistance = 1.5f;
 
         Vector3 CalculateJumpVelocity(Vector3 startPoint, Vector3 endPoint,
                                       float trajectoryHeight) const;

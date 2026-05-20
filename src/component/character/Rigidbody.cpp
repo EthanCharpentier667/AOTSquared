@@ -28,6 +28,49 @@ namespace aot::character {
 
         float delta = GetFrameTime();
 
+        if (activeGrapple) {
+            Vector3 toTarget = {
+                grappleTarget.x - position.x,
+                grappleTarget.y - position.y,
+                grappleTarget.z - position.z,
+            };
+
+            float distance = Vector3Length(toTarget);
+            if (distance <= grappleStopDistance) {
+                activeGrapple = false;
+                velocity = {0.0f, 0.0f, 0.0f};
+                return;
+            }
+
+            Vector3 pullDirection = Vector3Normalize(toTarget);
+            velocity.x += pullDirection.x * grapplePullStrength * delta;
+            velocity.y += pullDirection.y * grapplePullStrength * delta;
+            velocity.z += pullDirection.z * grapplePullStrength * delta;
+
+            float currentSpeed = Vector3Length(velocity);
+            if (currentSpeed > grappleMaxSpeed) {
+                velocity =
+                    Vector3Scale(Vector3Normalize(velocity), grappleMaxSpeed);
+            }
+
+            position.x += velocity.x * delta;
+            position.y += velocity.y * delta;
+            position.z += velocity.z * delta;
+
+            if (position.y <= 0.0f) {
+                position.y = 0.0f;
+                velocity.y = 0.0f;
+                isGrounded = true;
+            }
+
+            _transform->SetRotation(aot::RaylibMaths::toGlmQuaternion(
+                {_controller->lookRotation.y, _controller->lookRotation.x, 0.0f,
+                 0.0f}));
+            _transform->SetPosition(aot::RaylibMaths::toGlmVector3(
+                {position.x, position.y, position.z}));
+            return;
+        }
+
         if (!isGrounded) {
             state = aot::character::MouvementState::Air;
             velocity.y -= GRAVITY * delta;
@@ -111,10 +154,19 @@ namespace aot::character {
 
     void Rigidbody::JumpToPosition(Vector3 targetPosition,
                                    float trajectoryHeight) {
+        activeGrapple = true;
+        grappleTarget = targetPosition;
         velocity =
             CalculateJumpVelocity(position, targetPosition, trajectoryHeight);
         isGrounded = false;
         state = MouvementState::Air;
+    }
+
+    void Rigidbody::StopGrapple() {
+        activeGrapple = false;
+        grappleTarget = position;
+        velocity = {0.0f, 0.0f, 0.0f};
+        state = isGrounded ? MouvementState::Idle : MouvementState::Air;
     }
 
 }  // namespace aot::character
