@@ -26,7 +26,7 @@ namespace aot::physics {
             for (auto entity : boxView) {
                 auto &collider = boxView.get<BoxCollider>(entity);
                 if (collider.activeGizmo) {
-                    DrawCubeWiresV(collider.position, collider.size, RED);
+                    DrawBoundingBox(collider.GetBoundingBox(), RED);
                 }
             }
 

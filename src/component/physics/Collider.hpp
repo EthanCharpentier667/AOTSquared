@@ -40,16 +40,33 @@ namespace aot::physics {
         ColliderTag tag = ColliderTag::None;
         uint32_t mask = static_cast<uint32_t>(ColliderTag::None);
         bool activeGizmo = false;
+
+        [[nodiscard]] BoundingBox GetBoundingBox() const {
+            const Vector3 halfSize = Vector3Scale(size, 0.5f);
+
+            return {
+                .min = Vector3Subtract(position, halfSize),
+                .max = Vector3Add(position, halfSize),
+            };
+        }
+
+        [[nodiscard]] RayCollision GetCollision(Ray ray) const {
+            return GetRayCollisionBox(ray, GetBoundingBox());
+        }
     };
 
     struct SphereCollider {
         SphereCollider(bool activeGizmo = false) : activeGizmo(activeGizmo) {
         }
         Vector3 position = {0.0f, 0.0f, 0.0f};
-        float radius = 1.0f;
+        float radius = 1.0f;s
         ColliderTag tag = ColliderTag::None;
         uint32_t mask = static_cast<uint32_t>(ColliderTag::None);
         bool activeGizmo = false;
+
+        [[nodiscard]] RayCollision GetCollision(Ray ray) const {
+            return GetRayCollisionSphere(ray, position, radius);
+        }
     };
 
     struct Collider {

@@ -111,6 +111,7 @@ namespace aot::gear {
         grappleRaycast->maxDistance = maxGrapDistance;
         grappleRaycast->layerMask =
             static_cast<uint32_t>(aot::physics::ColliderTag::Grappleable);
+        grappleRaycast->result = {};
         grappleRaycast->active = true;
 
         Log::Info("Grapple raycast");
