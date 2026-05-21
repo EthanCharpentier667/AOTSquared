@@ -16,10 +16,17 @@
 #include "../component/physics/Collider.hpp"
 #include "../component/physics/LineRenderer.hpp"
 #include "../component/physics/Raycast.hpp"
+#include "../component/render/CubeMesh.hpp"
+#include "../component/render/PlaneMesh.hpp"
+#include "../component/render/SphereMesh.hpp"
 #include "../plugin/render/Renders.hpp"
 #include "../system/CameraSystem.hpp"
+#include "../system/ColliderGizmoSystem.hpp"
+#include "../system/CubeMeshSystem.hpp"
 #include "../system/LineRendererSystem.hpp"
+#include "../system/PlaneMeshSystem.hpp"
 #include "../system/RaycastSystem.hpp"
+#include "../system/SphereMeshSystem.hpp"
 #include "Object.hpp"
 #include "Raylib.hpp"
 #include "Relationship.hpp"
@@ -54,6 +61,7 @@ namespace aot::plugin::scene {
                                          rigidBody.position.z});
             player.AddComponent<aot::gear::Hook>(guntip);
             auto cameraEntity = core.CreateEntity();
+            auto sphereEntity = core.CreateEntity();
 
             Camera cam = {
                 .position = {rigidBody.position.x,
@@ -67,6 +75,11 @@ namespace aot::plugin::scene {
                 .projection = CAMERA_PERSPECTIVE,
             };
             cameraEntity.AddComponent<aot::camera::RaylibCamera>(cam);
+            auto &sphereTransform =
+                sphereEntity.AddComponent<Object::Component::Transform>();
+            sphereTransform.SetPosition({300.0f, 300.0f, 0.0f});
+            sphereEntity.AddComponent<aot::geometry::SphereMesh>(100.0f, 16u,
+                                                                 24u, RED);
 
             auto &fixedTimeScheduler =
                 core.GetScheduler<Engine::Scheduler::FixedTimeUpdate>();
@@ -84,20 +97,13 @@ namespace aot::plugin::scene {
                                       aot::physics::ColliderTag::Tower |
                                       aot::physics::ColliderTag::Enemy);
 
-            core.RegisterSystem<aot::plugin::render::Render>(
-                [this](Engine::Core &core) {
-                    auto view =
-                        core.GetRegistry().view<aot::camera::RaylibCamera>();
-                    for (auto entity : view) {
-                        auto &camera =
-                            view.get<aot::camera::RaylibCamera>(entity).camera;
-                        BeginMode3D(camera);
-                        DrawLevel(core);
-                        EndMode3D();
-                    }
-                });
+            core.RegisterSystem<aot::plugin::render::Render>(PlaneMeshSystem);
+            core.RegisterSystem<aot::plugin::render::Render>(CubeMeshSystem);
+            core.RegisterSystem<aot::plugin::render::Render>(SphereMeshSystem);
             core.RegisterSystem<aot::plugin::render::Render>(
                 LineRendererSystem);
+            core.RegisterSystem<aot::plugin::render::Render>(
+                physics::ColliderGizmoSystem);
         }
 
         void _onDestroy(Engine::Core &core) final {
@@ -108,10 +114,15 @@ namespace aot::plugin::scene {
         void SetupGround(Engine::Core &core) {
             auto groundCollider = core.CreateEntity();
             auto &groundBox =
-                groundCollider.AddComponent<aot::physics::BoxCollider>();
+                groundCollider.AddComponent<aot::physics::BoxCollider>(true);
+            auto &groundTransform =
+                groundCollider.AddComponent<Object::Component::Transform>();
+            groundCollider.AddComponent<aot::geometry::PlaneMesh>(
+                500.0f, 500.0f, 1u, 1u, (Color){150, 200, 200, 255});
             groundBox.position = {0.0f, -0.5f, 0.0f};
             groundBox.size = {500.0f, 1.0f, 500.0f};
             groundBox.tag = aot::physics::ColliderTag::Ground;
+            groundTransform.SetPosition({0.0f, -0.5f, 0.0f});
         }
 
         void SetupTowers(Engine::Core &core) {
@@ -126,51 +137,17 @@ namespace aot::plugin::scene {
             for (auto towerPos : towerPositions) {
                 auto towerCollider = core.CreateEntity();
                 auto &towerBox =
-                    towerCollider.AddComponent<aot::physics::BoxCollider>();
+                    towerCollider.AddComponent<aot::physics::BoxCollider>(true);
+                auto &towerTransform =
+                    towerCollider.AddComponent<Object::Component::Transform>();
+                towerCollider.AddComponent<aot::geometry::CubeMesh>(towerSize,
+                                                                    DARKBLUE);
                 towerBox.position = towerPos;
                 towerBox.size = towerSize;
                 towerBox.tag = aot::physics::ColliderTag::Tower |
                                aot::physics::ColliderTag::Grappleable;
+                towerTransform.SetPosition(towerPos.x, towerPos.y, towerPos.z);
             }
-        }
-
-        void DrawLevel(Engine::Core &core) {
-            const int floorExtent = 25;
-            const float tileSize = 5.0f;
-            const Color tileColor1 = (Color){150, 200, 200, 255};
-
-            for (int y = -floorExtent; y < floorExtent; y++) {
-                for (int x = -floorExtent; x < floorExtent; x++) {
-                    if ((y & 1) && (x & 1)) {
-                        DrawPlane((Vector3){x * tileSize, 0.0f, y * tileSize},
-                                  (Vector2){tileSize, tileSize}, tileColor1);
-                    } else if (!(y & 1) && !(x & 1)) {
-                        DrawPlane((Vector3){x * tileSize, 0.0f, y * tileSize},
-                                  (Vector2){tileSize, tileSize}, LIGHTGRAY);
-                    }
-                }
-            }
-
-            const Color towerColor = (Color){150, 200, 200, 255};
-
-            auto &registry = core.GetRegistry();
-            auto view = registry.view<aot::physics::BoxCollider>();
-
-            for (auto entity : view) {
-                auto &box = view.get<aot::physics::BoxCollider>(entity);
-
-                if (!(static_cast<uint32_t>(box.tag) &
-                      static_cast<uint32_t>(
-                          aot::physics::ColliderTag::Tower))) {
-                    continue;
-                }
-
-                DrawCubeV(box.position, box.size, towerColor);
-                DrawCubeWiresV(box.position, box.size, DARKBLUE);
-            }
-
-            DrawSphere((Vector3){300.0f, 300.0f, 0.0f}, 100.0f,
-                       (Color){255, 0, 0, 255});
         }
     };
 }  // namespace aot::plugin::scene

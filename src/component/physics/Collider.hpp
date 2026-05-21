@@ -33,22 +33,31 @@ namespace aot::physics {
     }
 
     struct BoxCollider {
+        BoxCollider(bool activeGizmo = false) : activeGizmo(activeGizmo) {
+        }
         Vector3 position = {0.0f, 0.0f, 0.0f};
         Vector3 size = {1.0f, 1.0f, 1.0f};
         ColliderTag tag = ColliderTag::None;
         uint32_t mask = static_cast<uint32_t>(ColliderTag::None);
+        bool activeGizmo = false;
     };
 
     struct SphereCollider {
+        SphereCollider(bool activeGizmo = false) : activeGizmo(activeGizmo) {
+        }
         Vector3 position = {0.0f, 0.0f, 0.0f};
         float radius = 1.0f;
         ColliderTag tag = ColliderTag::None;
         uint32_t mask = static_cast<uint32_t>(ColliderTag::None);
+        bool activeGizmo = false;
     };
 
     struct Collider {
+        Collider(bool activeGizmo = false) : activeGizmo(activeGizmo) {
+        }
         BoxCollider *box = nullptr;
         SphereCollider *sphere = nullptr;
+        bool activeGizmo = false;
     };
 }  // namespace aot::physics
 
