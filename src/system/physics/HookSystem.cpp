@@ -13,7 +13,7 @@
 #include "component/equipement/Hook.hpp"
 #include "component/physics/LineRenderer.hpp"
 #include "component/physics/Raycast.hpp"
-#include "system/physics/RigidbodySystem.hpp"
+#include "system/physics/ControllerSystem.hpp"
 
 namespace aot::physics {
 

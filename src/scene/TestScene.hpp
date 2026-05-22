@@ -45,7 +45,8 @@ namespace aot::plugin::scene {
             Log::Info("TestScene created");
 
             auto player = core.CreateEntity();
-            player.AddComponent<Object::Component::Transform>();
+            auto &playerTransform =
+                player.AddComponent<Object::Component::Transform>();
             auto &rigidBody = player.AddComponent<aot::character::Rigidbody>();
             auto &controller =
                 player.AddComponent<aot::character::Controller>();
@@ -65,20 +66,35 @@ namespace aot::plugin::scene {
             auto &hook = player.AddComponent<aot::gear::Hook>();
             hook.anchor = guntip;
             auto cameraEntity = core.CreateEntity();
+            Relationship::Utils::SetChildOf(cameraEntity, player);
+            auto &cameraTransform =
+                cameraEntity.AddComponent<Object::Component::Transform>();
+            auto &cameraOffset =
+                cameraEntity.AddComponent<aot::physics::ChildOffset>();
+            cameraOffset.positionOffset = {0.0f, BOTTOM_HEIGHT + STAND_HEIGHT,
+                                           0.0f};
+            cameraTransform.SetPosition(
+                {playerTransform.GetPosition().x,
+                 playerTransform.GetPosition().y + BOTTOM_HEIGHT + STAND_HEIGHT,
+                 playerTransform.GetPosition().z});
             auto sphereEntity = core.CreateEntity();
 
             Camera cam = {
-                .position = {rigidBody.position.x,
-                             (BOTTOM_HEIGHT + controller.headLerp),
-                             rigidBody.position.z},
-                .target = {rigidBody.position.x,
-                           (BOTTOM_HEIGHT + controller.headLerp),
-                           rigidBody.position.z - 1.0f},
+                .position = {playerTransform.GetPosition().x,
+                             playerTransform.GetPosition().y + BOTTOM_HEIGHT +
+                                 STAND_HEIGHT,
+                             playerTransform.GetPosition().z},
+                .target = {playerTransform.GetPosition().x,
+                           playerTransform.GetPosition().y + BOTTOM_HEIGHT +
+                               STAND_HEIGHT,
+                           playerTransform.GetPosition().z - 1.0f},
                 .up = {0.0f, 1.0f, 0.0f},
                 .fovy = 60.0f,
                 .projection = CAMERA_PERSPECTIVE,
             };
-            cameraEntity.AddComponent<aot::camera::RaylibCamera>(cam);
+            auto &raylibCamera =
+                cameraEntity.AddComponent<aot::camera::RaylibCamera>(cam);
+            raylibCamera.headLerp = STAND_HEIGHT;
             auto &sphereTransform =
                 sphereEntity.AddComponent<Object::Component::Transform>();
             sphereTransform.SetPosition({300.0f, 300.0f, 0.0f});

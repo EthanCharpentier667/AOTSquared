@@ -7,59 +7,13 @@
 
 #include "RigidbodySystem.hpp"
 
-#include <algorithm>
-#include <cmath>
-
 #include "Object.hpp"
-#include "component/character/Controller.hpp"
+#include "component/camera/RaylibCamera.hpp"
 #include "component/character/Rigidbody.hpp"
+#include "glm/gtc/quaternion.hpp"
 
 namespace aot::physics {
-
-    Vector3 CalculateJumpVelocity(Vector3 startPoint, Vector3 endPoint,
-                                  float trajectoryHeight) {
-        float gravity = GRAVITY;
-        float jumpHeight = std::max(trajectoryHeight, 0.001f);
-        float displacementY = endPoint.y - startPoint.y;
-        Vector3 displacementXZ = {
-            endPoint.x - startPoint.x,
-            0.0f,
-            endPoint.z - startPoint.z,
-        };
-
-        float timeToApex = std::sqrt(2.0f * jumpHeight / gravity);
-        float heightToTarget = std::max(jumpHeight - displacementY, 0.001f);
-        float timeFromApex = std::sqrt(2.0f * heightToTarget / gravity);
-        float totalTime = std::max(timeToApex + timeFromApex, 0.001f);
-
-        return {
-            displacementXZ.x / totalTime,
-            std::sqrt(2.0f * gravity * jumpHeight),
-            displacementXZ.z / totalTime,
-        };
-    }
-
-    void StartGrapple(aot::character::Rigidbody &rigidBody,
-                      Vector3 targetPosition, float trajectoryHeight) {
-        rigidBody.activeGrapple = true;
-        rigidBody.grappleTarget = targetPosition;
-        rigidBody.velocity = CalculateJumpVelocity(
-            rigidBody.position, targetPosition, trajectoryHeight);
-        rigidBody.isGrounded = false;
-        rigidBody.state = aot::character::MouvementState::Air;
-    }
-
-    void StopGrapple(aot::character::Rigidbody &rigidBody) {
-        rigidBody.activeGrapple = false;
-        rigidBody.grappleTarget = rigidBody.position;
-        rigidBody.velocity = {0.0f, 0.0f, 0.0f};
-        rigidBody.state = rigidBody.isGrounded
-                              ? aot::character::MouvementState::Idle
-                              : aot::character::MouvementState::Air;
-    }
-
-    static void UpdateRigidbody(aot::character::Rigidbody &rigidBody,
-                                aot::character::Controller &controller,
+    static void UpdateRigidbody(aot::character::Rigidbody &rigidBody, float yaw,
                                 Object::Component::Transform &transform) {
         float delta = GetFrameTime();
 
@@ -102,9 +56,8 @@ namespace aot::physics {
                 rigidBody.isGrounded = true;
             }
 
-            transform.SetRotation(aot::RaylibMaths::toGlmQuaternion(
-                {controller.lookRotation.y, controller.lookRotation.x, 0.0f,
-                 0.0f}));
+            transform.SetRotation(
+                glm::angleAxis(yaw, glm::vec3(0.0f, 1.0f, 0.0f)));
             transform.SetPosition(aot::RaylibMaths::toGlmVector3(
                 {rigidBody.position.x, rigidBody.position.y,
                  rigidBody.position.z}));
@@ -116,38 +69,6 @@ namespace aot::physics {
             rigidBody.velocity.y -= GRAVITY * delta;
         }
 
-        if (rigidBody.isGrounded && controller.jumpPressed) {
-            rigidBody.state = aot::character::MouvementState::Air;
-            rigidBody.velocity.y = JUMP_FORCE;
-            rigidBody.isGrounded = false;
-        }
-
-        float decel = (rigidBody.isGrounded ? FRICTION : AIR_DRAG);
-        Vector3 hvel = {rigidBody.velocity.x * decel, 0.0f,
-                        rigidBody.velocity.z * decel};
-
-        float hvelLength = Vector3Length(hvel);
-        if (hvelLength < (MAX_SPEED * 0.01f))
-            hvel = (Vector3){0};
-
-        float speed = Vector3DotProduct(hvel, controller.dir);
-
-        if (controller.crouching) {
-            rigidBody.state = aot::character::MouvementState::Crouching;
-        } else if (controller.dir.x != 0.0f || controller.dir.z != 0.0f) {
-            rigidBody.state = aot::character::MouvementState::Running;
-        } else {
-            rigidBody.state = aot::character::MouvementState::Walking;
-        }
-
-        float maxSpeed = (controller.crouching ? CROUCH_SPEED : MAX_SPEED);
-        float accel = Clamp(maxSpeed - speed, 0.f, MAX_ACCEL * delta);
-        hvel.x += controller.dir.x * accel;
-        hvel.z += controller.dir.z * accel;
-
-        rigidBody.velocity.x = hvel.x;
-        rigidBody.velocity.z = hvel.z;
-
         rigidBody.position.x += rigidBody.velocity.x * delta;
         rigidBody.position.y += rigidBody.velocity.y * delta;
         rigidBody.position.z += rigidBody.velocity.z * delta;
@@ -158,9 +79,7 @@ namespace aot::physics {
             rigidBody.isGrounded = true;
         }
 
-        transform.SetRotation(aot::RaylibMaths::toGlmQuaternion(
-            {controller.lookRotation.y, controller.lookRotation.x, 0.0f,
-             0.0f}));
+        transform.SetRotation(glm::angleAxis(yaw, glm::vec3(0.0f, 1.0f, 0.0f)));
         transform.SetPosition(aot::RaylibMaths::toGlmVector3(
             {rigidBody.position.x, rigidBody.position.y,
              rigidBody.position.z}));
@@ -168,12 +87,19 @@ namespace aot::physics {
 
     void UpdateRigidbodies(Engine::Core &core) {
         auto &registry = core.GetRegistry();
-        auto view =
-            registry.view<aot::character::Controller, aot::character::Rigidbody,
-                          Object::Component::Transform>();
+        auto view = registry.view<aot::character::Rigidbody,
+                                  Object::Component::Transform>();
+        auto cameraView = registry.view<aot::camera::RaylibCamera>();
 
-        view.each([](auto &controller, auto &rigidBody, auto &transform) {
-            UpdateRigidbody(rigidBody, controller, transform);
+        float yaw = 0.0f;
+        if (cameraView.begin() != cameraView.end()) {
+            auto cameraEntity = *cameraView.begin();
+            yaw = cameraView.get<aot::camera::RaylibCamera>(cameraEntity)
+                      .lookRotation.x;
+        }
+
+        view.each([&](auto &rigidBody, auto &transform) {
+            UpdateRigidbody(rigidBody, yaw, transform);
         });
     }
 
