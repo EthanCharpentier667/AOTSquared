@@ -20,13 +20,16 @@
 #include "../component/render/PlaneMesh.hpp"
 #include "../component/render/SphereMesh.hpp"
 #include "../plugin/render/Renders.hpp"
-#include "../system/CameraSystem.hpp"
-#include "../system/ColliderGizmoSystem.hpp"
-#include "../system/CubeMeshSystem.hpp"
 #include "../system/LineRendererSystem.hpp"
-#include "../system/PlaneMeshSystem.hpp"
 #include "../system/RaycastSystem.hpp"
-#include "../system/SphereMeshSystem.hpp"
+#include "../system/camera/CameraSystem.hpp"
+#include "../system/physics/ControllerSystem.hpp"
+#include "../system/physics/HookSystem.hpp"
+#include "../system/physics/RigidbodySystem.hpp"
+#include "../system/render/ColliderGizmoSystem.hpp"
+#include "../system/render/CubeMeshSystem.hpp"
+#include "../system/render/PlaneMeshSystem.hpp"
+#include "../system/render/SphereMeshSystem.hpp"
 #include "Object.hpp"
 #include "Raylib.hpp"
 #include "Relationship.hpp"
@@ -59,7 +62,8 @@ namespace aot::plugin::scene {
             guntipTransform.SetPosition({rigidBody.position.x - 0.5f,
                                          rigidBody.position.y - 1.0f,
                                          rigidBody.position.z});
-            player.AddComponent<aot::gear::Hook>(guntip);
+            auto &hook = player.AddComponent<aot::gear::Hook>();
+            hook.anchor = guntip;
             auto cameraEntity = core.CreateEntity();
             auto sphereEntity = core.CreateEntity();
 
@@ -88,6 +92,10 @@ namespace aot::plugin::scene {
                 CameraSystem);
             core.RegisterSystem<Engine::Scheduler::FixedTimeUpdate>(
                 RaycastSystem);
+
+            aot::physics::RegisterControllerSystems(core);
+            aot::physics::RegisterRigidbodySystems(core);
+            aot::physics::RegisterHookSystems(core);
 
             SetupGround(core);
             SetupTowers(core);

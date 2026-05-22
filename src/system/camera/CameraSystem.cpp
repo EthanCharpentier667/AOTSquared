@@ -76,21 +76,10 @@ void CameraSystem(Engine::Core &core) {
     auto playerView =
         registry.view<aot::character::Rigidbody, aot::character::Controller>();
 
-    for (auto playerEntity : playerView) {
-        const auto &rigidBody =
-            playerView.get<aot::character::Rigidbody>(playerEntity);
-        auto &controller =
-            playerView.get<aot::character::Controller>(playerEntity);
-
+    playerView.each([&](auto playerEntity, auto &rigidBody, auto &controller) {
         auto cameraView = registry.view<aot::camera::RaylibCamera>();
-        for (auto cameraEntity : cameraView) {
-            auto &camera =
-                cameraView.get<aot::camera::RaylibCamera>(cameraEntity).camera;
-            camera.position = (Vector3){
-                rigidBody.position.x,
-                rigidBody.position.y + BOTTOM_HEIGHT + controller.headLerp,
-                rigidBody.position.z};
-            UpdateCameraFPS(&camera, rigidBody, controller);
-        }
-    }
+        cameraView.each([&](auto cameraEntity, auto &raylibCamera) {
+            UpdateCameraFPS(&raylibCamera.camera, rigidBody, controller);
+        });
+    });
 }

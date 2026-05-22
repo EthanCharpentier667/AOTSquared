@@ -59,7 +59,7 @@ namespace aot::physics {
         SphereCollider(bool activeGizmo = false) : activeGizmo(activeGizmo) {
         }
         Vector3 position = {0.0f, 0.0f, 0.0f};
-        float radius = 1.0f;s
+        float radius = 1.0f;
         ColliderTag tag = ColliderTag::None;
         uint32_t mask = static_cast<uint32_t>(ColliderTag::None);
         bool activeGizmo = false;

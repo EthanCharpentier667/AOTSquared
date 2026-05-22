@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "../component/render/SphereMesh.hpp"
+#include "../../component/render/SphereMesh.hpp"
 #include "Raylib.hpp"
 
 void SphereMeshSystem(Engine::Core &core);

@@ -7,7 +7,9 @@
 
 #pragma once
 
-#include "../component/physics/Collider.hpp"
+#include "../../component/camera/RaylibCamera.hpp"
+#include "../../component/physics/Collider.hpp"
+
 namespace aot::physics {
     void ColliderGizmoSystem(Engine::Core &core);
 }  // namespace aot::physics

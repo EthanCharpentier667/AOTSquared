@@ -13,16 +13,14 @@ void RaycastSystem(Engine::Core &core) {
     auto &registry = core.GetRegistry();
     auto view = registry.view<aot::physics::Raycast>();
 
-    for (auto entity : view) {
-        auto &raycast = view.get<aot::physics::Raycast>(entity);
-
+    view.each([&](auto entity, auto &raycast) {
         if (!raycast.active)
-            continue;
+            return;
 
         raycast.result = aot::physics::RaycastAgainstColliders(
             raycast.origin, raycast.direction, raycast.maxDistance,
             raycast.layerMask, &core);
 
         raycast.active = false;
-    }
+    });
 }

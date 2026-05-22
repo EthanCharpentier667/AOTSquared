@@ -1,19 +1,9 @@
 #pragma once
 
-#include "../AMonoBehavior.hpp"
+#include "Raylib.hpp"
 
 namespace aot::character {
-
-    class Controller : public AMonoBehavior {
-      public:
-        Controller();
-        ~Controller() override = default;
-
-        void Start(Engine::Core &core) override;
-        void Update(Engine::Core &core) override;
-        void FixedUpdate(Engine::Core &core) override;
-        void Stop(Engine::Core &core) override;
-
+    struct Controller {
         float headLerp = STAND_HEIGHT;
         float walkLerp = 0.0f;
         float headTimer = 0.0f;

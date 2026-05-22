@@ -31,11 +31,9 @@ namespace aot::physics {
 
         // BoxColliders
         auto boxView = registry.view<aot::physics::BoxCollider>();
-        for (auto entity : boxView) {
-            auto &box = boxView.get<aot::physics::BoxCollider>(entity);
-
+        boxView.each([&](auto &box) {
             if (!(static_cast<uint32_t>(box.tag) & layerMask))
-                continue;
+                return;
 
             RayCollision collision = box.GetCollision(ray);
 
@@ -46,15 +44,13 @@ namespace aot::physics {
                 closestHit.point = collision.point;
                 closestHit.normal = collision.normal;
             }
-        }
+        });
 
         // SphereColliders
         auto sphereView = registry.view<aot::physics::SphereCollider>();
-        for (auto entity : sphereView) {
-            auto &sphere = sphereView.get<aot::physics::SphereCollider>(entity);
-
+        sphereView.each([&](auto &sphere) {
             if (!(static_cast<uint32_t>(sphere.tag) & layerMask))
-                continue;
+                return;
 
             RayCollision collision = sphere.GetCollision(ray);
 
@@ -65,7 +61,7 @@ namespace aot::physics {
                 closestHit.point = collision.point;
                 closestHit.normal = collision.normal;
             }
-        }
+        });
 
         return closestHit;
     }

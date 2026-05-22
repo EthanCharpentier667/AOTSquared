@@ -15,7 +15,17 @@ namespace aot::plugin::render {
         using Engine::Scheduler::Update::Update;
     };
 
+    class PreRender3D : public Engine::Scheduler::Update {
+      public:
+        using Engine::Scheduler::Update::Update;
+    };
+
     class Render : public Engine::Scheduler::Update {
+      public:
+        using Engine::Scheduler::Update::Update;
+    };
+
+    class PostRender3D : public Engine::Scheduler::Update {
       public:
         using Engine::Scheduler::Update::Update;
     };

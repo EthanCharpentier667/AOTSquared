@@ -7,11 +7,10 @@
 
 #include "Raylib.hpp"
 #include "plugin/Core.hpp"
-#include "plugin/MonoBehivor.hpp"
 #include "plugin/PluginScene.hpp"
 #include "resource/SceneManager.hpp"
 #include "scene/TestScene.hpp"
-#include "system/ChildFollowParentSystem.hpp"
+#include "system/physics/ChildFollowParentSystem.hpp"
 
 void Setup(Engine::Core &core) {
     core.GetResource<Scene::Resource::SceneManager>()
@@ -25,7 +24,7 @@ int main(void) {
     Engine::Core core;
 
     core.AddPlugins<aot::plugin::raylib::RaylibPlugin, aot::plugin::Core,
-                    Scene::Plugin, aot::plugin::MonoBehivor>();
+                    Scene::Plugin>();
 
     core.RegisterSystem<Engine::Scheduler::Startup>(Setup);
     core.Run();
