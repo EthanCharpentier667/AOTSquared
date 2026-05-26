@@ -19,7 +19,6 @@ namespace aot::plugin::scene {
             core.GetScheduler<Engine::Scheduler::FixedTimeUpdate>();
         fixedTimeScheduler.SetTickRate(1.0f / 120.0f);
         core.RegisterSystem<Engine::Scheduler::FixedTimeUpdate>(CameraSystem);
-        core.RegisterSystem<Engine::Scheduler::FixedTimeUpdate>(RaycastSystem);
 
         aot::physics::RegisterControllerSystems(core);
         aot::physics::RegisterRigidbodySystems(core);
@@ -83,12 +82,6 @@ namespace aot::plugin::scene {
             player.AddComponent<Object::Component::Transform>();
         auto &rigidBody = player.AddComponent<aot::character::Rigidbody>();
         auto &controller = player.AddComponent<aot::character::Controller>();
-
-        auto &raycast = player.AddComponent<aot::physics::Raycast>();
-        raycast.layerMask =
-            static_cast<uint32_t>(aot::physics::ColliderTag::Ground |
-                                  aot::physics::ColliderTag::Tower |
-                                  aot::physics::ColliderTag::Enemy);
 
         player.AddComponent<aot::physics::LineRenderer>();
 

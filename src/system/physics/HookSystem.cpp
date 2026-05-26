@@ -12,7 +12,6 @@
 #include "component/character/Rigidbody.hpp"
 #include "component/equipement/Hook.hpp"
 #include "component/physics/LineRenderer.hpp"
-#include "component/physics/Raycast.hpp"
 #include "system/physics/ControllerSystem.hpp"
 
 namespace aot::physics {
@@ -31,16 +30,11 @@ namespace aot::physics {
 
     static void StopGrappling(aot::gear::Hook &hook,
                               aot::character::Rigidbody &rigidBody,
-                              aot::physics::Raycast *grappleRaycast,
                               aot::physics::LineRenderer *grappleLine) {
         hook.grappling = false;
         hook.grappleDelayTimer = 0.0f;
         hook.grapplingCdTimer = hook.grapplingCd;
         aot::physics::StopGrapple(rigidBody);
-
-        if (grappleRaycast) {
-            grappleRaycast->active = false;
-        }
         if (grappleLine) {
             grappleLine->enabled = false;
         }
@@ -64,8 +58,8 @@ namespace aot::physics {
         (void)camera;
     }
 
-    static void StartGrappling(aot::gear::Hook &hook,
-                               aot::physics::Raycast &grappleRaycast,
+    static void StartGrappling(Engine::Core &core, aot::gear::Hook &hook,
+                               aot::character::Rigidbody &rigidBody,
                                aot::physics::LineRenderer *grappleLine,
                                const Camera &camera) {
         if (hook.grapplingCdTimer > 0.0f)
@@ -74,18 +68,18 @@ namespace aot::physics {
         hook.grappling = true;
         hook.grappleDelayTimer = hook.grappleTimeDelay;
 
-        grappleRaycast.origin = GetGuntipPosition(camera, hook.anchor);
-        grappleRaycast.direction =
-            Vector3Normalize(Vector3Subtract(camera.target, camera.position));
-        grappleRaycast.maxDistance = hook.maxGrapDistance;
-        grappleRaycast.layerMask =
-            static_cast<uint32_t>(aot::physics::ColliderTag::Grappleable);
-        grappleRaycast.result = {};
-        grappleRaycast.active = true;
+        hook.grappleHit = aot::physics::Raycast(
+            GetGuntipPosition(camera, hook.anchor),
+            Vector3Normalize(Vector3Subtract(camera.target, camera.position)),
+            hook.maxGrapDistance,
+            static_cast<uint32_t>(aot::physics::ColliderTag::Grappleable),
+            &core);
 
         if (grappleLine) {
             grappleLine->enabled = false;
         }
+
+        (void)rigidBody;
     }
 
     void UpdateHooks(Engine::Core &core) {
@@ -98,19 +92,18 @@ namespace aot::physics {
         const Camera camera =
             cameraView.get<aot::camera::RaylibCamera>(cameraEntity).camera;
 
-        auto view =
-            registry.view<aot::gear::Hook, aot::character::Rigidbody,
-                          aot::physics::Raycast, aot::physics::LineRenderer,
-                          Object::Component::Transform>();
+        auto view = registry.view<aot::gear::Hook, aot::character::Rigidbody,
+                                  aot::physics::LineRenderer,
+                                  Object::Component::Transform>();
 
         float delta = GetFrameTime();
-        view.each([&](auto &hook, auto &rigidBody, auto &grappleRaycast,
-                      auto &grappleLine, auto &transform) {
+        view.each([&](auto &hook, auto &rigidBody, auto &grappleLine,
+                      auto &transform) {
             if (IsKeyPressed(KEY_E) && !hook.grappling) {
-                StartGrappling(hook, grappleRaycast, &grappleLine, camera);
+                StartGrappling(core, hook, rigidBody, &grappleLine, camera);
             }
             if (IsKeyReleased(KEY_E) && hook.grappling) {
-                StopGrappling(hook, rigidBody, &grappleRaycast, &grappleLine);
+                StopGrappling(hook, rigidBody, &grappleLine);
             }
 
             if (hook.grapplingCdTimer > 0.0f)
@@ -119,8 +112,8 @@ namespace aot::physics {
             if (hook.grappleDelayTimer > 0.0f) {
                 hook.grappleDelayTimer -= delta;
                 if (hook.grappleDelayTimer <= 0.0f && hook.grappling) {
-                    if (grappleRaycast.result.hit) {
-                        hook.grapplePoint = grappleRaycast.result.point;
+                    if (hook.grappleHit.hit) {
+                        hook.grapplePoint = hook.grappleHit.point;
                         grappleLine.enabled = true;
                         grappleLine.startPoint =
                             GetGuntipPosition(camera, hook.anchor);
@@ -129,8 +122,7 @@ namespace aot::physics {
                         grappleLine.color = BLACK;
                         ExecuteGrapple(hook, rigidBody, transform, camera);
                     } else {
-                        StopGrappling(hook, rigidBody, &grappleRaycast,
-                                      &grappleLine);
+                        StopGrappling(hook, rigidBody, &grappleLine);
                     }
                 }
             }

@@ -11,6 +11,8 @@
 #include "Collider.hpp"
 #include "Raylib.hpp"
 
+struct EngineCore;
+
 namespace aot::physics {
     struct RaycastHit {
         bool hit = false;
@@ -19,15 +21,55 @@ namespace aot::physics {
         float distance = 0.0f;
     };
 
-    struct Raycast {
-        Vector3 origin = {0.0f, 0.0f, 0.0f};
-        Vector3 direction = {0.0f, 0.0f, 1.0f};
-        float maxDistance = 100.0f;
-        bool active = false;
-        uint32_t layerMask = static_cast<uint32_t>(ColliderTag::None);
+    inline RaycastHit Raycast(Vector3 origin, Vector3 direction,
+                              float maxDistance, uint32_t layerMask,
+                              Engine::Core *core = nullptr) {
+        RaycastHit closestHit;
+        closestHit.distance = maxDistance;
 
-        RaycastHit result;
-    };
+        if (!core)
+            return closestHit;
+
+        if (Vector3LengthSqr(direction) <= 0.000001f)
+            return closestHit;
+
+        Ray ray = {origin, Vector3Normalize(direction)};
+        auto &registry = core->GetRegistry();
+
+        auto boxView = registry.view<aot::physics::BoxCollider>();
+        boxView.each([&](auto &box) {
+            if (!(static_cast<uint32_t>(box.tag) & layerMask))
+                return;
+
+            RayCollision collision = box.GetCollision(ray);
+
+            if (collision.hit && collision.distance <= maxDistance &&
+                collision.distance < closestHit.distance) {
+                closestHit.hit = true;
+                closestHit.distance = collision.distance;
+                closestHit.point = collision.point;
+                closestHit.normal = collision.normal;
+            }
+        });
+
+        auto sphereView = registry.view<aot::physics::SphereCollider>();
+        sphereView.each([&](auto &sphere) {
+            if (!(static_cast<uint32_t>(sphere.tag) & layerMask))
+                return;
+
+            RayCollision collision = sphere.GetCollision(ray);
+
+            if (collision.hit && collision.distance <= maxDistance &&
+                collision.distance < closestHit.distance) {
+                closestHit.hit = true;
+                closestHit.distance = collision.distance;
+                closestHit.point = collision.point;
+                closestHit.normal = collision.normal;
+            }
+        });
+
+        return closestHit;
+    }
 }  // namespace aot::physics
 
 #endif /* !RAYCAST_HPP_ */

@@ -5,22 +5,27 @@
 ** Hook
 */
 
-#pragma once
+#ifndef HOOK_HPP_
+#define HOOK_HPP_
 
 #include <optional>
 
+#include "../physics/Raycast.hpp"
 #include "Raylib.hpp"
 
 namespace aot::gear {
     struct Hook {
         std::optional<Engine::Entity> anchor = std::nullopt;
         Vector3 grapplePoint = {0.0f, 0.0f, 0.0f};
-        float maxGrapDistance = 50.0f;
+        aot::physics::RaycastHit grappleHit;
+        float maxGrapDistance = 100.0f;
         float grappleTimeDelay = 0.1f;
         float grapplingCd = 1.0f;
         float grapplingCdTimer = 0.0f;
         float grappleDelayTimer = 0.0f;
         bool grappling = false;
-        float overshootYAxis = 5.0f;
+        float overshootYAxis = 1.0f;
     };
 }  // namespace aot::gear
+
+#endif /* !HOOK_HPP_ */
