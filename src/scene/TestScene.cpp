@@ -24,6 +24,8 @@ namespace aot::plugin::scene {
         aot::physics::RegisterHookSystems(core);
         core.RegisterSystem<Engine::Scheduler::FixedTimeUpdate>(
             ChildFollowParentSystem);
+        core.RegisterSystem<Engine::Scheduler::FixedTimeUpdate>(
+            CollisionSystem);
         core.RegisterSystem<Engine::Scheduler::FixedTimeUpdate>(CameraSystem);
 
         SetupGround(core);
@@ -85,6 +87,13 @@ namespace aot::plugin::scene {
         auto &rigidBody = player.AddComponent<aot::character::Rigidbody>();
         auto &controller = player.AddComponent<aot::character::Controller>();
 
+        auto &playerCollider =
+            player.AddComponent<aot::physics::CapsuleCollider>(true);
+        playerCollider.radius = 0.5f;
+        playerCollider.height = STAND_HEIGHT + (BOTTOM_HEIGHT * 2.5f);
+        playerCollider.tag = aot::physics::ColliderTag::Player;
+        playerCollider.offset = {0.0f, playerCollider.height / 2.0f, 0.0f};
+
         player.AddComponent<aot::physics::LineRenderer>();
 
         auto guntip = core.CreateEntity();
@@ -112,17 +121,17 @@ namespace aot::plugin::scene {
     }
 
     void TestScene::SetupGround(Engine::Core &core) {
-        auto groundCollider = core.CreateEntity();
-        auto &groundBox =
-            groundCollider.AddComponent<aot::physics::BoxCollider>(true);
+        auto ground = core.CreateEntity();
         auto &groundTransform =
-            groundCollider.AddComponent<Object::Component::Transform>();
-        groundCollider.AddComponent<aot::geometry::PlaneMesh>(
-            500.0f, 500.0f, 1u, 1u, (Color){150, 200, 200, 255});
-        groundBox.position = {0.0f, -0.5f, 0.0f};
-        groundBox.size = {500.0f, 1.0f, 500.0f};
-        groundBox.tag = aot::physics::ColliderTag::Ground;
+            ground.AddComponent<Object::Component::Transform>();
         groundTransform.SetPosition({0.0f, -0.5f, 0.0f});
+        ground.AddComponent<aot::geometry::PlaneMesh>(
+            500.0f, 500.0f, 1u, 1u, (Color){150, 200, 200, 255});
+        auto &groundCollider =
+            ground.AddComponent<aot::physics::BoxCollider>(true);
+        groundCollider.position = {0.0f, -0.5f, 0.0f};
+        groundCollider.size = {500.0f, 1.0f, 500.0f};
+        groundCollider.tag = aot::physics::ColliderTag::Ground;
     }
 
     void TestScene::SetupTowers(Engine::Core &core) {
@@ -135,17 +144,16 @@ namespace aot::plugin::scene {
         Vector3 towerSize = {16.0f, 32.0f, 16.0f};
 
         for (auto towerPos : towerPositions) {
-            auto towerCollider = core.CreateEntity();
-            auto &towerBox =
-                towerCollider.AddComponent<aot::physics::BoxCollider>(true);
+            auto tower = core.CreateEntity();
+            auto &towerCollider =
+                tower.AddComponent<aot::physics::BoxCollider>(true);
             auto &towerTransform =
-                towerCollider.AddComponent<Object::Component::Transform>();
-            towerCollider.AddComponent<aot::geometry::CubeMesh>(towerSize,
-                                                                DARKBLUE);
-            towerBox.position = towerPos;
-            towerBox.size = towerSize;
-            towerBox.tag = aot::physics::ColliderTag::Tower |
-                           aot::physics::ColliderTag::Grappleable;
+                tower.AddComponent<Object::Component::Transform>();
+            tower.AddComponent<aot::geometry::CubeMesh>(towerSize, DARKBLUE);
+            towerCollider.position = towerPos;
+            towerCollider.size = towerSize;
+            towerCollider.tag = aot::physics::ColliderTag::Tower |
+                                aot::physics::ColliderTag::Grappleable;
             towerTransform.SetPosition(towerPos.x, towerPos.y, towerPos.z);
         }
     }

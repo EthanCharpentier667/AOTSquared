@@ -1,9 +1,9 @@
 #pragma once
 
-#include "core/Core.hpp"
+#include "../../component/physics/ChildOffset.hpp"
 #include "Object.hpp"
 #include "Relationship.hpp"
-#include "../../component/physics/ChildOffset.hpp"
+#include "core/Core.hpp"
 
 struct HierarchyNode {
     aot::physics::ChildOffset *childOffset = nullptr;

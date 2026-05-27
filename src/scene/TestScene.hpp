@@ -22,6 +22,7 @@
 #include "../system/LineRendererSystem.hpp"
 #include "../system/camera/CameraSystem.hpp"
 #include "../system/physics/ChildFollowParentSystem.hpp"
+#include "../system/physics/CollisionSystem.hpp"
 #include "../system/physics/ControllerSystem.hpp"
 #include "../system/physics/HookSystem.hpp"
 #include "../system/physics/RigidbodySystem.hpp"

@@ -20,10 +20,9 @@ void ChildFollowParentSystem(Engine::Core &core) {
     view.each([&](auto entity, auto &childOffset, auto &childTransform,
                   auto &relationship) {
         (void)entity;
-        nodes.push_back(
-            HierarchyNode{.childOffset = &childOffset,
-                          .transform = &childTransform,
-                          .relationship = &relationship});
+        nodes.push_back(HierarchyNode{.childOffset = &childOffset,
+                                      .transform = &childTransform,
+                                      .relationship = &relationship});
     });
 
     for (size_t iteration = 0; iteration < nodes.size(); ++iteration) {
