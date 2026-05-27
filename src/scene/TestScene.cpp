@@ -88,7 +88,7 @@ namespace aot::plugin::scene {
         auto &controller = player.AddComponent<aot::character::Controller>();
 
         auto &playerCollider =
-            player.AddComponent<aot::physics::CapsuleCollider>(true);
+            player.AddComponent<aot::physics::CapsuleCollider>(false);
         playerCollider.radius = 0.5f;
         playerCollider.height = STAND_HEIGHT + (BOTTOM_HEIGHT * 2.5f);
         playerCollider.tag = aot::physics::ColliderTag::Player;

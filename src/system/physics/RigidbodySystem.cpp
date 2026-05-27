@@ -50,12 +50,6 @@ namespace aot::physics {
             rigidBody.position.y += rigidBody.velocity.y * delta;
             rigidBody.position.z += rigidBody.velocity.z * delta;
 
-            if (rigidBody.position.y <= 0.0f) {
-                rigidBody.position.y = 0.0f;
-                rigidBody.velocity.y = 0.0f;
-                rigidBody.isGrounded = true;
-            }
-
             transform.SetRotation(
                 glm::angleAxis(yaw, glm::vec3(0.0f, 1.0f, 0.0f)));
             transform.SetPosition(aot::RaylibMaths::toGlmVector3(
@@ -72,12 +66,6 @@ namespace aot::physics {
         rigidBody.position.x += rigidBody.velocity.x * delta;
         rigidBody.position.y += rigidBody.velocity.y * delta;
         rigidBody.position.z += rigidBody.velocity.z * delta;
-
-        if (rigidBody.position.y <= 0.0f) {
-            rigidBody.position.y = 0.0f;
-            rigidBody.velocity.y = 0.0f;
-            rigidBody.isGrounded = true;
-        }
 
         transform.SetRotation(glm::angleAxis(yaw, glm::vec3(0.0f, 1.0f, 0.0f)));
         transform.SetPosition(aot::RaylibMaths::toGlmVector3(

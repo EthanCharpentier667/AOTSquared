@@ -42,7 +42,7 @@ namespace aot::physics {
         uint32_t mask = static_cast<uint32_t>(ColliderTag::None);
         bool activeGizmo = false;
         bool isColliding = false;
-        Color gizmoColor = RED;
+        Color gizmoColor = GREEN;
 
         [[nodiscard]] BoundingBox GetBoundingBox() const {
             const Vector3 halfSize = Vector3Scale(size, 0.5f);
@@ -67,7 +67,7 @@ namespace aot::physics {
         ColliderTag tag = ColliderTag::None;
         uint32_t mask = static_cast<uint32_t>(ColliderTag::None);
         bool activeGizmo = false;
-        Color gizmoColor = RED;
+        Color gizmoColor = GREEN;
         bool isColliding = false;
         [[nodiscard]] RayCollision GetCollision(Ray ray) const {
             return GetRayCollisionSphere(ray, position, radius);
@@ -85,7 +85,7 @@ namespace aot::physics {
         ColliderTag tag = ColliderTag::None;
         uint32_t mask = static_cast<uint32_t>(ColliderTag::None);
         bool activeGizmo = false;
-        Color gizmoColor = RED;
+        Color gizmoColor = GREEN;
         bool isColliding = false;
 
         [[nodiscard]] float GetCylinderHeight() const {

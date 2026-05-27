@@ -7,11 +7,15 @@
 
 #include "CollisionSystem.hpp"
 
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
+#include <type_traits>
 #include <vector>
 
 #include "../../component/physics/ColliderUtils.hpp"
 #include "Object.hpp"
+#include "component/character/Rigidbody.hpp"
 
 static bool PassFilter(uint32_t sourceMask, aot::physics::ColliderTag sourceTag,
                        uint32_t targetMask,
@@ -25,156 +29,173 @@ static bool PassFilter(uint32_t sourceMask, aot::physics::ColliderTag sourceTag,
            (static_cast<uint32_t>(targetTag) & effectiveSourceMask) != 0;
 }
 
-static bool CanCollide(const aot::physics::BoxCollider &box,
-                       const aot::physics::BoxCollider &other) {
-    return PassFilter(box.mask, box.tag, other.mask, other.tag);
+template <typename ColliderA, typename ColliderB>
+static bool CanCollide(const ColliderA &source, const ColliderB &target) {
+    return PassFilter(source.mask, source.tag, target.mask, target.tag);
 }
 
-static bool CanCollide(const aot::physics::BoxCollider &box,
-                       const aot::physics::SphereCollider &sphere) {
-    return PassFilter(box.mask, box.tag, sphere.mask, sphere.tag);
+static bool IsZeroVector(const Vector3 &vector) {
+    return vector.x == 0.0f && vector.y == 0.0f && vector.z == 0.0f;
 }
 
-static bool CanCollide(const aot::physics::BoxCollider &box,
-                       const aot::physics::CapsuleCollider &capsule) {
-    return PassFilter(box.mask, box.tag, capsule.mask, capsule.tag);
+static BoundingBox SphereToBox(const aot::physics::SphereCollider &sphere) {
+    Vector3 radiusVector = {sphere.radius, sphere.radius, sphere.radius};
+    return {.min = Vector3Subtract(sphere.position, radiusVector),
+            .max = Vector3Add(sphere.position, radiusVector)};
 }
 
-static bool CanCollide(const aot::physics::SphereCollider &sphere,
-                       const aot::physics::SphereCollider &other) {
-    return PassFilter(sphere.mask, sphere.tag, other.mask, other.tag);
+static Vector3 GetBoxCenter(const BoundingBox &box) {
+    return {(box.min.x + box.max.x) * 0.5f, (box.min.y + box.max.y) * 0.5f,
+            (box.min.z + box.max.z) * 0.5f};
 }
 
-static bool CanCollide(const aot::physics::CapsuleCollider &capsule,
-                       const aot::physics::BoxCollider &box) {
-    return PassFilter(capsule.mask, capsule.tag, box.mask, box.tag);
+static Vector3 GetMinimumTranslationVector(const BoundingBox &source,
+                                           const BoundingBox &target) {
+    if (!CheckCollisionBoxes(source, target))
+        return {0.0f, 0.0f, 0.0f};
+
+    float overlapX = std::min(source.max.x, target.max.x) -
+                     std::max(source.min.x, target.min.x);
+    float overlapY = std::min(source.max.y, target.max.y) -
+                     std::max(source.min.y, target.min.y);
+    float overlapZ = std::min(source.max.z, target.max.z) -
+                     std::max(source.min.z, target.min.z);
+
+    Vector3 sourceCenter = GetBoxCenter(source);
+    Vector3 targetCenter = GetBoxCenter(target);
+
+    if (overlapX <= overlapY && overlapX <= overlapZ) {
+        return {sourceCenter.x < targetCenter.x ? -overlapX : overlapX, 0.0f,
+                0.0f};
+    }
+
+    if (overlapY <= overlapX && overlapY <= overlapZ) {
+        return {0.0f, sourceCenter.y < targetCenter.y ? -overlapY : overlapY,
+                0.0f};
+    }
+
+    return {0.0f, 0.0f, sourceCenter.z < targetCenter.z ? -overlapZ : overlapZ};
 }
 
-static bool CanCollide(const aot::physics::CapsuleCollider &capsule,
-                       const aot::physics::SphereCollider &sphere) {
-    return PassFilter(capsule.mask, capsule.tag, sphere.mask, sphere.tag);
+static BoundingBox ToBoundingBox(const aot::physics::BoxCollider &collider) {
+    return collider.GetBoundingBox();
 }
 
-static bool CanCollide(const aot::physics::CapsuleCollider &capsule,
-                       const aot::physics::CapsuleCollider &other) {
-    return PassFilter(capsule.mask, capsule.tag, other.mask, other.tag);
+static BoundingBox ToBoundingBox(const aot::physics::SphereCollider &collider) {
+    return SphereToBox(collider);
 }
 
-static void Reset(aot::physics::BoxCollider &collider) {
-    collider.isColliding = false;
-    collider.gizmoColor = GREEN;
+static BoundingBox ToBoundingBox(
+    const aot::physics::CapsuleCollider &collider) {
+    aot::physics::BoxCollider body;
+    body.position = {collider.position.x,
+                     collider.position.y + (collider.height * 0.5f),
+                     collider.position.z};
+    body.size = {collider.radius * 2.0f, collider.GetCylinderHeight(),
+                 collider.radius * 2.0f};
+    return body.GetBoundingBox();
 }
 
-static void Reset(aot::physics::SphereCollider &collider) {
-    collider.isColliding = false;
-    collider.gizmoColor = GREEN;
+template <typename ColliderA, typename ColliderB>
+static Vector3 ResolveCollision(const ColliderA &self, const ColliderB &other) {
+    return GetMinimumTranslationVector(ToBoundingBox(self),
+                                       ToBoundingBox(other));
 }
 
-static void Reset(aot::physics::CapsuleCollider &collider) {
-    collider.isColliding = false;
-    collider.gizmoColor = GREEN;
+template <typename ColliderT>
+static void ApplyCollisionResponse(ColliderT &collider,
+                                   aot::character::Rigidbody &rigidBody,
+                                   Object::Component::Transform &transform,
+                                   const Vector3 &correction) {
+    if (IsZeroVector(correction))
+        return;
+
+    collider.position = Vector3Add(collider.position, correction);
+    rigidBody.position = Vector3Add(rigidBody.position, correction);
+
+    if (correction.y > 0.0f) {
+        rigidBody.isGrounded = true;
+        rigidBody.velocity.y = 0.0f;
+    } else if (correction.y < 0.0f) {
+        rigidBody.velocity.y = std::max(0.0f, rigidBody.velocity.y);
+    }
+
+    if (correction.x != 0.0f)
+        rigidBody.velocity.x = 0.0f;
+    if (correction.z != 0.0f)
+        rigidBody.velocity.z = 0.0f;
+
+    transform.SetPosition(aot::RaylibMaths::toGlmVector3(rigidBody.position));
 }
 
-static void MarkCollision(aot::physics::BoxCollider &collider) {
-    collider.isColliding = true;
-    collider.gizmoColor = RED;
-}
+template <typename ColliderT>
+static void ResolveColliderAgainstWorld(
+    ColliderT &selfCollider, aot::character::Rigidbody &rigidBody,
+    Object::Component::Transform &transform, const std::vector<BoxProxy> &boxes,
+    const std::vector<SphereProxy> &spheres,
+    const std::vector<CapsuleProxy> &capsules) {
+    for (int iteration = 0; iteration < 4; ++iteration) {
+        bool corrected = false;
 
-static void MarkCollision(aot::physics::SphereCollider &collider) {
-    collider.isColliding = true;
-    collider.gizmoColor = RED;
-}
+        for (const auto &boxProxy : boxes) {
+            auto *box = boxProxy.collider;
+            if (!CanCollide(selfCollider, *box))
+                continue;
 
-static void MarkCollision(aot::physics::CapsuleCollider &collider) {
-    collider.isColliding = true;
-    collider.gizmoColor = RED;
-}
+            Vector3 correction = ResolveCollision(selfCollider, *box);
+            if (IsZeroVector(correction))
+                continue;
 
-static bool CapsuleHitsBox(const aot::physics::CapsuleCollider &capsule,
-                           const aot::physics::BoxCollider &box) {
-    aot::physics::BoxCollider capsuleBody;
-    capsuleBody.position = {capsule.position.x,
-                            capsule.position.y + (capsule.height * 0.5f),
-                            capsule.position.z};
-    capsuleBody.size = {capsule.radius * 2.0f, capsule.GetCylinderHeight(),
-                        capsule.radius * 2.0f};
+            ApplyCollisionResponse(selfCollider, rigidBody, transform,
+                                   correction);
+            corrected = true;
+            break;
+        }
 
-    if (CheckCollisionBoxes(capsuleBody.GetBoundingBox(), box.GetBoundingBox()))
-        return true;
+        if (corrected)
+            continue;
 
-    if (CheckCollisionBoxSphere(box.GetBoundingBox(),
-                                capsule.GetTopSphereCenter(), capsule.radius))
-        return true;
+        for (const auto &sphereProxy : spheres) {
+            auto *sphere = sphereProxy.collider;
+            if (!CanCollide(selfCollider, *sphere))
+                continue;
 
-    if (CheckCollisionBoxSphere(box.GetBoundingBox(),
-                                capsule.GetBottomSphereCenter(),
-                                capsule.radius))
-        return true;
+            Vector3 correction = ResolveCollision(selfCollider, *sphere);
+            if (IsZeroVector(correction))
+                continue;
 
-    return false;
-}
+            ApplyCollisionResponse(selfCollider, rigidBody, transform,
+                                   correction);
+            corrected = true;
+            break;
+        }
 
-static bool CapsuleHitsSphere(const aot::physics::CapsuleCollider &capsule,
-                              const aot::physics::SphereCollider &sphere) {
-    aot::physics::BoxCollider capsuleBody;
-    capsuleBody.position = {capsule.position.x,
-                            capsule.position.y + (capsule.height * 0.5f),
-                            capsule.position.z};
-    capsuleBody.size = {capsule.radius * 2.0f, capsule.GetCylinderHeight(),
-                        capsule.radius * 2.0f};
+        if (corrected)
+            continue;
 
-    if (CheckCollisionBoxSphere(capsuleBody.GetBoundingBox(), sphere.position,
-                                sphere.radius))
-        return true;
+        for (const auto &capsuleProxy : capsules) {
+            auto *capsule = capsuleProxy.collider;
+            if constexpr (std::is_same_v<ColliderT,
+                                         aot::physics::CapsuleCollider>) {
+                if (&selfCollider == capsule)
+                    continue;
+            }
+            if (!CanCollide(selfCollider, *capsule))
+                continue;
 
-    if (CheckCollisionSpheres(capsule.GetTopSphereCenter(), capsule.radius,
-                              sphere.position, sphere.radius))
-        return true;
+            Vector3 correction = ResolveCollision(selfCollider, *capsule);
+            if (IsZeroVector(correction))
+                continue;
 
-    if (CheckCollisionSpheres(capsule.GetBottomSphereCenter(), capsule.radius,
-                              sphere.position, sphere.radius))
-        return true;
+            ApplyCollisionResponse(selfCollider, rigidBody, transform,
+                                   correction);
+            corrected = true;
+            break;
+        }
 
-    return false;
-}
-
-static bool CapsuleHitsCapsule(const aot::physics::CapsuleCollider &capsule,
-                               const aot::physics::CapsuleCollider &other) {
-    aot::physics::BoxCollider capsuleBody;
-    capsuleBody.position = {capsule.position.x,
-                            capsule.position.y + (capsule.height * 0.5f),
-                            capsule.position.z};
-    capsuleBody.size = {capsule.radius * 2.0f, capsule.GetCylinderHeight(),
-                        capsule.radius * 2.0f};
-
-    aot::physics::BoxCollider otherBody;
-    otherBody.position = {other.position.x,
-                          other.position.y + (other.height * 0.5f),
-                          other.position.z};
-    otherBody.size = {other.radius * 2.0f, other.GetCylinderHeight(),
-                      other.radius * 2.0f};
-
-    if (CheckCollisionBoxes(capsuleBody.GetBoundingBox(),
-                            otherBody.GetBoundingBox()))
-        return true;
-
-    if (CheckCollisionSpheres(capsule.GetTopSphereCenter(), capsule.radius,
-                              other.GetTopSphereCenter(), other.radius))
-        return true;
-
-    if (CheckCollisionSpheres(capsule.GetTopSphereCenter(), capsule.radius,
-                              other.GetBottomSphereCenter(), other.radius))
-        return true;
-
-    if (CheckCollisionSpheres(capsule.GetBottomSphereCenter(), capsule.radius,
-                              other.GetTopSphereCenter(), other.radius))
-        return true;
-
-    if (CheckCollisionSpheres(capsule.GetBottomSphereCenter(), capsule.radius,
-                              other.GetBottomSphereCenter(), other.radius))
-        return true;
-
-    return false;
+        if (!corrected)
+            break;
+    }
 }
 
 void CollisionSystem(Engine::Core &core) {
@@ -196,7 +217,6 @@ void CollisionSystem(Engine::Core &core) {
     boxView.each([&](auto, auto &box, auto &transform) {
         box.position =
             aot::physics::GetColliderWorldPosition(transform, box.offset);
-        Reset(box);
         boxes.push_back(BoxProxy{&box});
     });
 
@@ -204,7 +224,6 @@ void CollisionSystem(Engine::Core &core) {
     sphereView.each([&](auto, auto &sphere, auto &transform) {
         sphere.position =
             aot::physics::GetColliderWorldPosition(transform, sphere.offset);
-        Reset(sphere);
         spheres.push_back(SphereProxy{&sphere});
     });
 
@@ -212,86 +231,36 @@ void CollisionSystem(Engine::Core &core) {
     capsuleView.each([&](auto, auto &capsule, auto &transform) {
         capsule.position =
             aot::physics::GetColliderWorldPosition(transform, capsule.offset);
-        Reset(capsule);
         capsules.push_back(CapsuleProxy{&capsule});
     });
 
-    for (size_t i = 0; i < boxes.size(); ++i) {
-        auto *box = boxes[i].collider;
+    auto boxRigidBodyView =
+        registry.view<aot::physics::BoxCollider, Object::Component::Transform,
+                      aot::character::Rigidbody>();
+    auto sphereRigidBodyView =
+        registry
+            .view<aot::physics::SphereCollider, Object::Component::Transform,
+                  aot::character::Rigidbody>();
+    auto capsuleRigidBodyView =
+        registry
+            .view<aot::physics::CapsuleCollider, Object::Component::Transform,
+                  aot::character::Rigidbody>();
 
-        for (size_t j = i + 1; j < boxes.size(); ++j) {
-            auto *otherBox = boxes[j].collider;
-            if (CanCollide(*box, *otherBox) &&
-                CheckCollisionBoxes(box->GetBoundingBox(),
-                                    otherBox->GetBoundingBox())) {
-                MarkCollision(*box);
-                MarkCollision(*otherBox);
-            }
-        }
+    boxRigidBodyView.each(
+        [&](auto, auto &collider, auto &transform, auto &rigidBody) {
+            ResolveColliderAgainstWorld(collider, rigidBody, transform, boxes,
+                                        spheres, capsules);
+        });
 
-        for (auto &sphereProxy : spheres) {
-            auto *sphere = sphereProxy.collider;
-            if (!CanCollide(*box, *sphere))
-                continue;
+    sphereRigidBodyView.each(
+        [&](auto, auto &collider, auto &transform, auto &rigidBody) {
+            ResolveColliderAgainstWorld(collider, rigidBody, transform, boxes,
+                                        spheres, capsules);
+        });
 
-            if (CheckCollisionBoxSphere(box->GetBoundingBox(), sphere->position,
-                                        sphere->radius)) {
-                MarkCollision(*box);
-                MarkCollision(*sphere);
-            }
-        }
-
-        for (auto &capsuleProxy : capsules) {
-            auto *capsule = capsuleProxy.collider;
-            if (!CanCollide(*box, *capsule))
-                continue;
-
-            if (CapsuleHitsBox(*capsule, *box)) {
-                MarkCollision(*box);
-                MarkCollision(*capsule);
-            }
-        }
-    }
-
-    for (size_t i = 0; i < spheres.size(); ++i) {
-        auto *sphere = spheres[i].collider;
-
-        for (size_t j = i + 1; j < spheres.size(); ++j) {
-            auto *otherSphere = spheres[j].collider;
-            if (CanCollide(*sphere, *otherSphere) &&
-                CheckCollisionSpheres(sphere->position, sphere->radius,
-                                      otherSphere->position,
-                                      otherSphere->radius)) {
-                MarkCollision(*sphere);
-                MarkCollision(*otherSphere);
-            }
-        }
-    }
-
-    for (size_t i = 0; i < capsules.size(); ++i) {
-        auto *capsule = capsules[i].collider;
-
-        for (auto &sphereProxy : spheres) {
-            auto *sphere = sphereProxy.collider;
-            if (!CanCollide(*capsule, *sphere))
-                continue;
-
-            if (CapsuleHitsSphere(*capsule, *sphere)) {
-                MarkCollision(*capsule);
-                MarkCollision(*sphere);
-            }
-        }
-
-        for (size_t j = i + 1; j < capsules.size(); ++j) {
-            auto *otherCapsule = capsules[j].collider;
-
-            if (!CanCollide(*capsule, *otherCapsule))
-                continue;
-
-            if (CapsuleHitsCapsule(*capsule, *otherCapsule)) {
-                MarkCollision(*capsule);
-                MarkCollision(*otherCapsule);
-            }
-        }
-    }
+    capsuleRigidBodyView.each(
+        [&](auto, auto &collider, auto &transform, auto &rigidBody) {
+            ResolveColliderAgainstWorld(collider, rigidBody, transform, boxes,
+                                        spheres, capsules);
+        });
 }
