@@ -1,6 +1,15 @@
 #pragma once
 
 #include "core/Core.hpp"
+#include "Object.hpp"
+#include "Relationship.hpp"
+#include "../../component/physics/ChildOffset.hpp"
+
+struct HierarchyNode {
+    aot::physics::ChildOffset *childOffset = nullptr;
+    Object::Component::Transform *transform = nullptr;
+    Relationship::Component::Relationship *relationship = nullptr;
+};
 
 /**
  * @brief System that updates child entity transforms to follow their parent.

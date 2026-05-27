@@ -1,5 +1,7 @@
 #include "ChildFollowParentSystem.hpp"
 
+#include <vector>
+
 #include "../../component/physics/ChildOffset.hpp"
 #include "Object.hpp"
 #include "Raylib.hpp"
@@ -8,45 +10,48 @@
 void ChildFollowParentSystem(Engine::Core &core) {
     auto &registry = core.GetRegistry();
 
-    // Iterate over all entities that have ChildOffset, Transform, and
-    // Relationship
+    std::vector<HierarchyNode> nodes;
+
     auto view =
         registry.view<aot::physics::ChildOffset, Object::Component::Transform,
                       Relationship::Component::Relationship>();
+    nodes.reserve(view.size_hint());
 
     view.each([&](auto entity, auto &childOffset, auto &childTransform,
                   auto &relationship) {
-        // Skip if no parent
-        if (!relationship.parent.has_value()) {
-            return;
-        }
-
-        auto parentEntity = relationship.parent.value();
-
-        // Get parent's transform
-        if (!parentEntity
-                 .template HasComponents<Object::Component::Transform>()) {
-            return;
-        }
-
-        auto &parentTransform =
-            parentEntity.template GetComponents<Object::Component::Transform>();
-
-        // Compute child's world position: parentPos + parentRot *
-        // childOffset.positionOffset
-        glm::vec3 worldPosition =
-            parentTransform.GetPosition() +
-            parentTransform.GetRotation() *
-                aot::RaylibMaths::toGlmVector3(childOffset.positionOffset);
-
-        // Compute child's world rotation: parentRot *
-        // childOffset.rotationOffset
-        glm::quat worldRotation =
-            parentTransform.GetRotation() *
-            aot::RaylibMaths::toGlmQuaternion(childOffset.rotationOffset);
-
-        // Update child's transform
-        childTransform.SetPosition(worldPosition);
-        childTransform.SetRotation(worldRotation);
+        (void)entity;
+        nodes.push_back(
+            HierarchyNode{.childOffset = &childOffset,
+                          .transform = &childTransform,
+                          .relationship = &relationship});
     });
+
+    for (size_t iteration = 0; iteration < nodes.size(); ++iteration) {
+        for (auto &node : nodes) {
+            if (!node.relationship->parent.has_value())
+                continue;
+
+            auto parentEntity = node.relationship->parent.value();
+            if (!parentEntity
+                     .template HasComponents<Object::Component::Transform>()) {
+                continue;
+            }
+
+            auto &parentTransform =
+                parentEntity
+                    .template GetComponents<Object::Component::Transform>();
+
+            glm::vec3 worldPosition = parentTransform.GetPosition() +
+                                      parentTransform.GetRotation() *
+                                          aot::RaylibMaths::toGlmVector3(
+                                              node.childOffset->positionOffset);
+
+            glm::quat worldRotation = parentTransform.GetRotation() *
+                                      aot::RaylibMaths::toGlmQuaternion(
+                                          node.childOffset->rotationOffset);
+
+            node.transform->SetPosition(worldPosition);
+            node.transform->SetRotation(worldRotation);
+        }
+    }
 }

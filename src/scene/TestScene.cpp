@@ -18,11 +18,13 @@ namespace aot::plugin::scene {
         auto &fixedTimeScheduler =
             core.GetScheduler<Engine::Scheduler::FixedTimeUpdate>();
         fixedTimeScheduler.SetTickRate(1.0f / 120.0f);
-        core.RegisterSystem<Engine::Scheduler::FixedTimeUpdate>(CameraSystem);
 
         aot::physics::RegisterControllerSystems(core);
         aot::physics::RegisterRigidbodySystems(core);
         aot::physics::RegisterHookSystems(core);
+        core.RegisterSystem<Engine::Scheduler::FixedTimeUpdate>(
+            ChildFollowParentSystem);
+        core.RegisterSystem<Engine::Scheduler::FixedTimeUpdate>(CameraSystem);
 
         SetupGround(core);
         SetupTowers(core);
