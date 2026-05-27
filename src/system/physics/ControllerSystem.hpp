@@ -26,6 +26,7 @@ namespace aot::physics {
     void StartGrapple(aot::character::Rigidbody *rigidBody,
                       Vector3 targetPosition, float trajectoryHeight);
 
-    void StopGrapple(aot::character::Rigidbody *rigidBody);
+    void StopGrapple(aot::character::Rigidbody *rigidBody,
+                     float momentumMultiplier = 1.0f);
 
 }  // namespace aot::physics

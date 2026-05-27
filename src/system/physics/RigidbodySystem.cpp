@@ -10,10 +10,12 @@
 #include "Object.hpp"
 #include "component/camera/RaylibCamera.hpp"
 #include "component/character/Rigidbody.hpp"
+#include "system/physics/ControllerSystem.hpp"
 #include "glm/gtc/quaternion.hpp"
 
 namespace aot::physics {
-    static void UpdateRigidbody(aot::character::Rigidbody &rigidBody, float yaw,
+    static void UpdateRigidbody(aot::character::Rigidbody &rigidBody,
+                                float yaw,
                                 Object::Component::Transform &transform) {
         float delta = GetFrameTime();
 
@@ -26,8 +28,7 @@ namespace aot::physics {
 
             float distance = Vector3Length(toTarget);
             if (distance <= rigidBody.grappleStopDistance) {
-                rigidBody.activeGrapple = false;
-                rigidBody.velocity = {0.0f, 0.0f, 0.0f};
+                StopGrapple(&rigidBody, 1.0f);
                 return;
             }
 

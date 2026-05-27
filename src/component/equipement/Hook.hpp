@@ -18,7 +18,7 @@ namespace aot::gear {
         aot::physics::RaycastHit grappleHit;
         float maxGrapDistance = 100.0f;
         float grappleTimeDelay = 0.1f;
-        float grapplingCd = 1.0f;
+        float grapplingCd = 0.2f;
         float grapplingCdTimer = 0.0f;
         float grappleDelayTimer = 0.0f;
         bool grappling = false;

@@ -7,6 +7,8 @@
 
 #include "HookSystem.hpp"
 
+#include <array>
+
 #include "Object.hpp"
 #include "component/Utils.hpp"
 #include "component/camera/RaylibCamera.hpp"
@@ -26,14 +28,55 @@ namespace aot::physics {
 
     static void StopGrappling(aot::gear::Hook &hook,
                               aot::character::Rigidbody *rigidBody,
-                              aot::physics::LineRenderer *grappleLine) {
+                              aot::physics::LineRenderer *grappleLine,
+                              float momentumMultiplier) {
         hook.grappling = false;
         hook.grappleDelayTimer = 0.0f;
         hook.grapplingCdTimer = hook.grapplingCd;
-        aot::physics::StopGrapple(rigidBody);
+        aot::physics::StopGrapple(rigidBody, momentumMultiplier);
         if (grappleLine) {
             grappleLine->enabled = false;
         }
+    }
+
+    static aot::physics::RaycastHit AimAssistRaycast(
+        Vector3 startPoint, Vector3 direction, float maxDistance,
+        uint32_t layerMask, const Camera &camera, Engine::Core &core) {
+        aot::physics::RaycastHit bestHit = aot::physics::Raycast(
+            startPoint, direction, maxDistance, layerMask, &core);
+
+        Vector3 forward = Vector3Normalize(direction);
+        Vector3 up = Vector3Normalize(camera.up);
+        if (Vector3LengthSqr(up) <= 0.000001f)
+            up = {0.0f, 1.0f, 0.0f};
+
+        Vector3 right = Vector3Normalize(Vector3CrossProduct(forward, up));
+        if (Vector3LengthSqr(right) <= 0.000001f)
+            right = {1.0f, 0.0f, 0.0f};
+
+        up = Vector3Normalize(Vector3CrossProduct(right, forward));
+
+        constexpr float assistCone = 0.045f;
+        constexpr std::array<Vector2, 8> sampleOffsets = {{
+            {1.0f, 0.0f},  {-1.0f, 0.0f}, {0.0f, 1.0f},  {0.0f, -1.0f},
+            {0.7071f, 0.7071f},  {-0.7071f, 0.7071f},
+            {0.7071f, -0.7071f}, {-0.7071f, -0.7071f},
+        }};
+
+        for (const Vector2 &offset : sampleOffsets) {
+            Vector3 candidateDirection = Vector3Add(
+                forward,
+                Vector3Add(Vector3Scale(right, offset.x * assistCone),
+                           Vector3Scale(up, offset.y * assistCone)));
+            candidateDirection = Vector3Normalize(candidateDirection);
+
+            auto hit = aot::physics::Raycast(startPoint, candidateDirection,
+                                             maxDistance, layerMask, &core);
+            if (hit.hit && (!bestHit.hit || hit.distance < bestHit.distance))
+                bestHit = hit;
+        }
+
+        return bestHit;
     }
 
     static void ExecuteGrapple(aot::gear::Hook &hook,
@@ -65,10 +108,10 @@ namespace aot::physics {
         Vector3 direction =
             Vector3Normalize(Vector3Subtract(camera.target, camera.position));
 
-        hook.grappleHit = aot::physics::Raycast(
+        hook.grappleHit = AimAssistRaycast(
             startPoint, direction, hook.maxGrapDistance,
             static_cast<uint32_t>(aot::physics::ColliderTag::Grappleable),
-            &core);
+            camera, core);
 
         if (grappleLine) {
             grappleLine->startPoint = startPoint;
@@ -121,7 +164,7 @@ namespace aot::physics {
                 StartGrappling(core, hook, grappleLine, camera, entity);
             }
             if (IsKeyReleased(hook.key) && hook.grappling) {
-                StopGrappling(hook, rigidBody, grappleLine);
+                StopGrappling(hook, rigidBody, grappleLine, 1.12f);
             }
 
             if (hook.grapplingCdTimer > 0.0f)
@@ -140,7 +183,7 @@ namespace aot::physics {
                         grappleLine->color = BLACK;
                         ExecuteGrapple(hook, rigidBody, parentTransform);
                     } else {
-                        StopGrappling(hook, rigidBody, grappleLine);
+                        StopGrappling(hook, rigidBody, grappleLine, 1.0f);
                     }
                 }
             }

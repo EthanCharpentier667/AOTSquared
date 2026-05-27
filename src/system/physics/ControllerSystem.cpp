@@ -49,10 +49,12 @@ namespace aot::physics {
         rigidBody->state = aot::character::MouvementState::Air;
     }
 
-    void StopGrapple(aot::character::Rigidbody *rigidBody) {
+    void StopGrapple(aot::character::Rigidbody *rigidBody,
+                     float momentumMultiplier) {
         rigidBody->activeGrapple = false;
         rigidBody->grappleTarget = rigidBody->position;
-        rigidBody->velocity = {0.0f, 0.0f, 0.0f};
+        rigidBody->velocity = Vector3Scale(rigidBody->velocity,
+                                           momentumMultiplier);
         rigidBody->state = rigidBody->isGrounded
                                ? aot::character::MouvementState::Idle
                                : aot::character::MouvementState::Air;
@@ -89,8 +91,13 @@ namespace aot::physics {
                                       float rot) {
         (void)rot;
 
-        if (rigidBody.activeGrapple)
+        if (rigidBody.activeGrapple) {
+            if (controller.dir.x != 0.0f || controller.dir.z != 0.0f) {
+                rigidBody.velocity.x += controller.dir.x * 55.0f * GetFrameTime();
+                rigidBody.velocity.z += controller.dir.z * 55.0f * GetFrameTime();
+            }
             return;
+        }
 
         if (rigidBody.isGrounded && controller.jumpPressed) {
             rigidBody.state = aot::character::MouvementState::Air;
