@@ -110,15 +110,6 @@ namespace aot::physics {
             };
         }
     };
-
-    struct Collider {
-        Collider(bool activeGizmo = false) : activeGizmo(activeGizmo) {
-        }
-        BoxCollider *box = nullptr;
-        SphereCollider *sphere = nullptr;
-        CapsuleCollider *capsule = nullptr;
-        bool activeGizmo = false;
-    };
 }  // namespace aot::physics
 
 #endif /* !COLLIDER_HPP_ */
