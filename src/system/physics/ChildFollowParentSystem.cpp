@@ -17,9 +17,7 @@ void ChildFollowParentSystem(Engine::Core &core) {
                       Relationship::Component::Relationship>();
     nodes.reserve(view.size_hint());
 
-    view.each([&](auto entity, auto &childOffset, auto &childTransform,
-                  auto &relationship) {
-        (void)entity;
+    view.each([&](auto &childOffset, auto &childTransform, auto &relationship) {
         nodes.push_back(HierarchyNode{.childOffset = &childOffset,
                                       .transform = &childTransform,
                                       .relationship = &relationship});
@@ -39,15 +37,16 @@ void ChildFollowParentSystem(Engine::Core &core) {
             auto &parentTransform =
                 parentEntity
                     .template GetComponents<Object::Component::Transform>();
+            auto &childOffset = node.childOffset;
 
-            glm::vec3 worldPosition = parentTransform.GetPosition() +
-                                      parentTransform.GetRotation() *
-                                          aot::RaylibMaths::toGlmVector3(
-                                              node.childOffset->positionOffset);
+            glm::vec3 worldPosition =
+                parentTransform.GetPosition() +
+                parentTransform.GetRotation() *
+                    aot::RaylibMaths::toGlmVector3(childOffset->positionOffset);
 
-            glm::quat worldRotation = parentTransform.GetRotation() *
-                                      aot::RaylibMaths::toGlmQuaternion(
-                                          node.childOffset->rotationOffset);
+            glm::quat worldRotation =
+                parentTransform.GetRotation() *
+                aot::RaylibMaths::toGlmQuaternion(childOffset->rotationOffset);
 
             node.transform->SetPosition(worldPosition);
             node.transform->SetRotation(worldRotation);

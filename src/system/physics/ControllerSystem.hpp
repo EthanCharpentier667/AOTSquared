@@ -23,9 +23,9 @@ namespace aot::physics {
     Vector3 CalculateJumpVelocity(Vector3 startPoint, Vector3 endPoint,
                                   float trajectoryHeight);
 
-    void StartGrapple(aot::character::Rigidbody &rigidBody,
+    void StartGrapple(aot::character::Rigidbody *rigidBody,
                       Vector3 targetPosition, float trajectoryHeight);
 
-    void StopGrapple(aot::character::Rigidbody &rigidBody);
+    void StopGrapple(aot::character::Rigidbody *rigidBody);
 
 }  // namespace aot::physics

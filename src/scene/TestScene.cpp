@@ -7,6 +7,8 @@
 
 #include "TestScene.hpp"
 
+#include "../component/physics/ChildOffsetUils.hpp"
+
 namespace aot::plugin::scene {
 
     void TestScene::_onCreate(Engine::Core &core) {
@@ -94,20 +96,36 @@ namespace aot::plugin::scene {
         playerCollider.tag = aot::physics::ColliderTag::Player;
         playerCollider.offset = {0.0f, playerCollider.height / 2.0f, 0.0f};
 
-        player.AddComponent<aot::physics::LineRenderer>();
+        // Setup right hook and guntip
+        auto rightGuntip = core.CreateEntity();
+        rightGuntip.AddComponent<aot::physics::LineRenderer>();
 
-        auto guntip = core.CreateEntity();
-        Relationship::Utils::SetChildOf(guntip, player);
-        guntip.AddComponent<aot::physics::ChildOffset>();
-        player.AddComponent<aot::physics::ChildOffset>();
+        auto &rightGuntipTransform =
+            rightGuntip.AddComponent<Object::Component::Transform>();
+        rightGuntipTransform.SetPosition({rigidBody.position.x + 1.0f,
+                                          rigidBody.position.y - 0.5f,
+                                          rigidBody.position.z});
+        aot::physics::ChildOffsetUils::makeChildFollowParent(rightGuntip,
+                                                             player);
 
-        auto &guntipTransform =
-            guntip.AddComponent<Object::Component::Transform>();
-        guntipTransform.SetPosition({rigidBody.position.x - 0.5f,
-                                     rigidBody.position.y - 1.0f,
-                                     rigidBody.position.z});
-        auto &hook = player.AddComponent<aot::gear::Hook>();
-        hook.anchor = guntip;
+        auto &rightHook = rightGuntip.AddComponent<aot::gear::Hook>();
+        rightHook.key = KEY_E;
+
+        // Setup left hook and guntip
+        auto leftGuntip = core.CreateEntity();
+        leftGuntip.AddComponent<aot::physics::LineRenderer>();
+
+        auto &leftGuntipTransform =
+            leftGuntip.AddComponent<Object::Component::Transform>();
+        leftGuntipTransform.SetPosition({rigidBody.position.x - 1.0f,
+                                         rigidBody.position.y - 0.5f,
+                                         rigidBody.position.z});
+        aot::physics::ChildOffsetUils::makeChildFollowParent(leftGuntip,
+                                                             player);
+
+        auto &leftHook = leftGuntip.AddComponent<aot::gear::Hook>();
+        leftHook.key = KEY_Q;
+
         return player;
     }
 

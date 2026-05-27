@@ -39,23 +39,23 @@ namespace aot::physics {
         };
     }
 
-    void StartGrapple(aot::character::Rigidbody &rigidBody,
+    void StartGrapple(aot::character::Rigidbody *rigidBody,
                       Vector3 targetPosition, float trajectoryHeight) {
-        rigidBody.activeGrapple = true;
-        rigidBody.grappleTarget = targetPosition;
-        rigidBody.velocity = CalculateJumpVelocity(
-            rigidBody.position, targetPosition, trajectoryHeight);
-        rigidBody.isGrounded = false;
-        rigidBody.state = aot::character::MouvementState::Air;
+        rigidBody->activeGrapple = true;
+        rigidBody->grappleTarget = targetPosition;
+        rigidBody->velocity = CalculateJumpVelocity(
+            rigidBody->position, targetPosition, trajectoryHeight);
+        rigidBody->isGrounded = false;
+        rigidBody->state = aot::character::MouvementState::Air;
     }
 
-    void StopGrapple(aot::character::Rigidbody &rigidBody) {
-        rigidBody.activeGrapple = false;
-        rigidBody.grappleTarget = rigidBody.position;
-        rigidBody.velocity = {0.0f, 0.0f, 0.0f};
-        rigidBody.state = rigidBody.isGrounded
-                              ? aot::character::MouvementState::Idle
-                              : aot::character::MouvementState::Air;
+    void StopGrapple(aot::character::Rigidbody *rigidBody) {
+        rigidBody->activeGrapple = false;
+        rigidBody->grappleTarget = rigidBody->position;
+        rigidBody->velocity = {0.0f, 0.0f, 0.0f};
+        rigidBody->state = rigidBody->isGrounded
+                               ? aot::character::MouvementState::Idle
+                               : aot::character::MouvementState::Air;
     }
 
     static void UpdateController(character::Controller &controller, float rot) {

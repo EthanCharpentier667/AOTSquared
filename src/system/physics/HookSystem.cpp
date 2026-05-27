@@ -8,28 +8,24 @@
 #include "HookSystem.hpp"
 
 #include "Object.hpp"
+#include "component/Utils.hpp"
 #include "component/camera/RaylibCamera.hpp"
 #include "component/character/Rigidbody.hpp"
 #include "component/equipement/Hook.hpp"
 #include "component/physics/LineRenderer.hpp"
 #include "system/physics/ControllerSystem.hpp"
-
 namespace aot::physics {
 
-    static Vector3 GetGuntipPosition(Camera camera,
-                                     std::optional<Engine::Entity> entity) {
-        if (entity.has_value()) {
-            auto transform =
-                entity.value().TryGetComponent<Object::Component::Transform>();
-            if (transform)
-                return aot::RaylibMaths::toRayVector3(transform->GetPosition());
-            return camera.position;
-        }
+    static Vector3 GetGuntipPosition(Camera camera, Engine::Entity &entity) {
+        auto transform = entity.TryGetComponent<Object::Component::Transform>();
+        if (transform)
+            return aot::RaylibMaths::toRayVector3(transform->GetPosition());
+        Log::Warning("Hook anchor entity does not have a Transform component");
         return camera.position;
     }
 
     static void StopGrappling(aot::gear::Hook &hook,
-                              aot::character::Rigidbody &rigidBody,
+                              aot::character::Rigidbody *rigidBody,
                               aot::physics::LineRenderer *grappleLine) {
         hook.grappling = false;
         hook.grappleDelayTimer = 0.0f;
@@ -41,11 +37,10 @@ namespace aot::physics {
     }
 
     static void ExecuteGrapple(aot::gear::Hook &hook,
-                               aot::character::Rigidbody &rigidBody,
-                               Object::Component::Transform &transform,
-                               const Camera &camera) {
+                               aot::character::Rigidbody *rigidBody,
+                               Object::Component::Transform *transform) {
         Vector3 lowestPoint =
-            aot::RaylibMaths::toRayVector3(transform.GetPosition());
+            aot::RaylibMaths::toRayVector3(transform->GetPosition());
 
         float grapplePointRelativeYPos = hook.grapplePoint.y - lowestPoint.y;
         float highestPointOnArc =
@@ -55,31 +50,31 @@ namespace aot::physics {
 
         aot::physics::StartGrapple(rigidBody, hook.grapplePoint,
                                    highestPointOnArc);
-        (void)camera;
     }
 
     static void StartGrappling(Engine::Core &core, aot::gear::Hook &hook,
-                               aot::character::Rigidbody &rigidBody,
                                aot::physics::LineRenderer *grappleLine,
-                               const Camera &camera) {
+                               const Camera &camera, Engine::Entity &entity) {
         if (hook.grapplingCdTimer > 0.0f)
             return;
 
         hook.grappling = true;
         hook.grappleDelayTimer = hook.grappleTimeDelay;
 
+        Vector3 startPoint = GetGuntipPosition(camera, entity);
+        Vector3 direction =
+            Vector3Normalize(Vector3Subtract(camera.target, camera.position));
+
         hook.grappleHit = aot::physics::Raycast(
-            GetGuntipPosition(camera, hook.anchor),
-            Vector3Normalize(Vector3Subtract(camera.target, camera.position)),
-            hook.maxGrapDistance,
+            startPoint, direction, hook.maxGrapDistance,
             static_cast<uint32_t>(aot::physics::ColliderTag::Grappleable),
             &core);
 
         if (grappleLine) {
+            grappleLine->startPoint = startPoint;
+            grappleLine->endPoint = hook.grappleHit.point;
             grappleLine->enabled = false;
         }
-
-        (void)rigidBody;
     }
 
     void UpdateHooks(Engine::Core &core) {
@@ -92,18 +87,41 @@ namespace aot::physics {
         const Camera camera =
             cameraView.get<aot::camera::RaylibCamera>(cameraEntity).camera;
 
-        auto view = registry.view<aot::gear::Hook, aot::character::Rigidbody,
-                                  aot::physics::LineRenderer,
-                                  Object::Component::Transform>();
+        auto view = registry.view<aot::gear::Hook>();
 
-        float delta = GetFrameTime();
-        view.each([&](auto &hook, auto &rigidBody, auto &grappleLine,
-                      auto &transform) {
-            if (IsKeyPressed(KEY_E) && !hook.grappling) {
-                StartGrappling(core, hook, rigidBody, &grappleLine, camera);
+        for (auto [entityId, hook] : view.each()) {
+            float delta = GetFrameTime();
+            Engine::Entity entity{core, entityId};
+            aot::physics::LineRenderer *grappleLine =
+                entity.template TryGetComponent<aot::physics::LineRenderer>();
+            if (!grappleLine) {
+                Log::Warning(
+                    "No LineRenderer component found on the hook entity");
+                return;
             }
-            if (IsKeyReleased(KEY_E) && hook.grappling) {
-                StopGrappling(hook, rigidBody, &grappleLine);
+            auto *rigidBody =
+                aot::utils::TryGetParentComponent<aot::character::Rigidbody>(
+                    entity);
+            if (!rigidBody) {
+                Log::Warning(
+                    "No Rigidbody component found on the hook entity's parent");
+                return;
+            }
+
+            auto *parentTransform =
+                aot::utils::TryGetParentComponent<Object::Component::Transform>(
+                    entity);
+            if (!parentTransform) {
+                Log::Warning(
+                    "No Transform component found on the hook entity's parent");
+                return;
+            }
+            if (IsKeyPressed(hook.key) && !hook.grappling) {
+                Log::Info("Starting grapple");
+                StartGrappling(core, hook, grappleLine, camera, entity);
+            }
+            if (IsKeyReleased(hook.key) && hook.grappling) {
+                StopGrappling(hook, rigidBody, grappleLine);
             }
 
             if (hook.grapplingCdTimer > 0.0f)
@@ -114,24 +132,24 @@ namespace aot::physics {
                 if (hook.grappleDelayTimer <= 0.0f && hook.grappling) {
                     if (hook.grappleHit.hit) {
                         hook.grapplePoint = hook.grappleHit.point;
-                        grappleLine.enabled = true;
-                        grappleLine.startPoint =
-                            GetGuntipPosition(camera, hook.anchor);
-                        grappleLine.endPoint = hook.grapplePoint;
-                        grappleLine.width = 0.2f;
-                        grappleLine.color = BLACK;
-                        ExecuteGrapple(hook, rigidBody, transform, camera);
+                        grappleLine->enabled = true;
+                        grappleLine->startPoint =
+                            GetGuntipPosition(camera, entity);
+                        grappleLine->endPoint = hook.grapplePoint;
+                        grappleLine->width = 0.2f;
+                        grappleLine->color = BLACK;
+                        ExecuteGrapple(hook, rigidBody, parentTransform);
                     } else {
-                        StopGrappling(hook, rigidBody, &grappleLine);
+                        StopGrappling(hook, rigidBody, grappleLine);
                     }
                 }
             }
 
             if (hook.grappling) {
-                grappleLine.startPoint = GetGuntipPosition(camera, hook.anchor);
-                grappleLine.endPoint = hook.grapplePoint;
+                grappleLine->startPoint = GetGuntipPosition(camera, entity);
+                grappleLine->endPoint = hook.grapplePoint;
             }
-        });
+        }
     }
 
     void RegisterHookSystems(Engine::Core &core) {

@@ -5,8 +5,7 @@
 ** Hook
 */
 
-#ifndef HOOK_HPP_
-#define HOOK_HPP_
+#pragma once
 
 #include <optional>
 
@@ -15,7 +14,6 @@
 
 namespace aot::gear {
     struct Hook {
-        std::optional<Engine::Entity> anchor = std::nullopt;
         Vector3 grapplePoint = {0.0f, 0.0f, 0.0f};
         aot::physics::RaycastHit grappleHit;
         float maxGrapDistance = 100.0f;
@@ -25,7 +23,6 @@ namespace aot::gear {
         float grappleDelayTimer = 0.0f;
         bool grappling = false;
         float overshootYAxis = 1.0f;
+        int key = KEY_E;
     };
 }  // namespace aot::gear
-
-#endif /* !HOOK_HPP_ */
