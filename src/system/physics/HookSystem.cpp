@@ -10,12 +10,13 @@
 #include <array>
 
 #include "Object.hpp"
-#include "component/Utils.hpp"
+#include "Relationship.hpp"
 #include "component/camera/RaylibCamera.hpp"
 #include "component/character/Rigidbody.hpp"
 #include "component/equipement/Hook.hpp"
 #include "component/physics/LineRenderer.hpp"
 #include "system/physics/ControllerSystem.hpp"
+
 namespace aot::physics {
 
     static Vector3 GetGuntipPosition(Camera camera, Engine::Entity &entity) {
@@ -58,16 +59,20 @@ namespace aot::physics {
 
         constexpr float assistCone = 0.045f;
         constexpr std::array<Vector2, 8> sampleOffsets = {{
-            {1.0f, 0.0f},  {-1.0f, 0.0f}, {0.0f, 1.0f},  {0.0f, -1.0f},
-            {0.7071f, 0.7071f},  {-0.7071f, 0.7071f},
-            {0.7071f, -0.7071f}, {-0.7071f, -0.7071f},
+            {1.0f, 0.0f},
+            {-1.0f, 0.0f},
+            {0.0f, 1.0f},
+            {0.0f, -1.0f},
+            {0.7071f, 0.7071f},
+            {-0.7071f, 0.7071f},
+            {0.7071f, -0.7071f},
+            {-0.7071f, -0.7071f},
         }};
 
         for (const Vector2 &offset : sampleOffsets) {
             Vector3 candidateDirection = Vector3Add(
-                forward,
-                Vector3Add(Vector3Scale(right, offset.x * assistCone),
-                           Vector3Scale(up, offset.y * assistCone)));
+                forward, Vector3Add(Vector3Scale(right, offset.x * assistCone),
+                                    Vector3Scale(up, offset.y * assistCone)));
             candidateDirection = Vector3Normalize(candidateDirection);
 
             auto hit = aot::physics::Raycast(startPoint, candidateDirection,
@@ -142,18 +147,16 @@ namespace aot::physics {
                     "No LineRenderer component found on the hook entity");
                 return;
             }
-            auto *rigidBody =
-                aot::utils::TryGetParentComponent<aot::character::Rigidbody>(
-                    entity);
+            auto *rigidBody = Relationship::Utils::TryGetParentComponent<
+                aot::character::Rigidbody>(entity);
             if (!rigidBody) {
                 Log::Warning(
                     "No Rigidbody component found on the hook entity's parent");
                 return;
             }
 
-            auto *parentTransform =
-                aot::utils::TryGetParentComponent<Object::Component::Transform>(
-                    entity);
+            auto *parentTransform = Relationship::Utils::TryGetParentComponent<
+                Object::Component::Transform>(entity);
             if (!parentTransform) {
                 Log::Warning(
                     "No Transform component found on the hook entity's parent");
