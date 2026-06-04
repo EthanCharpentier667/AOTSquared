@@ -162,6 +162,13 @@ namespace aot::physics {
                     "No Transform component found on the hook entity's parent");
                 return;
             }
+            if (hook.grappling && !rigidBody->activeGrapple &&
+                hook.grappleDelayTimer <= 0.0f) {
+                hook.grappling = false;
+                hook.grapplingCdTimer = hook.grapplingCd;
+                grappleLine->enabled = false;
+            }
+
             if (IsKeyPressed(hook.key) && !hook.grappling) {
                 Log::Info("Starting grapple");
                 StartGrappling(core, hook, grappleLine, camera, entity);

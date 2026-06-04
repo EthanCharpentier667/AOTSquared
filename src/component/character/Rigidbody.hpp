@@ -19,8 +19,9 @@ namespace aot::character {
         MouvementState state = MouvementState::Idle;
 
         Vector3 grappleTarget = {0.0f, 0.0f, 0.0f};
-        float grapplePullStrength = 45.0f;
-        float grappleMaxSpeed = 42.0f;
+        float grapplePullStrength = 38.0f;
+        float grappleMaxSpeed = 55.0f;
         float grappleStopDistance = 1.5f;
+        float grappleWireLength = 0.0f;
     };
 }  // namespace aot::character

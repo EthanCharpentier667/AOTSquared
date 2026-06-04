@@ -43,31 +43,41 @@ namespace aot::physics {
                       Vector3 targetPosition, float trajectoryHeight) {
         rigidBody->activeGrapple = true;
         rigidBody->grappleTarget = targetPosition;
-        rigidBody->velocity = CalculateJumpVelocity(
-            rigidBody->position, targetPosition, trajectoryHeight);
+        rigidBody->grappleWireLength =
+            Vector3Length(Vector3Subtract(targetPosition, rigidBody->position));
         rigidBody->isGrounded = false;
         rigidBody->state = aot::character::MouvementState::Air;
+
+        Vector3 toTarget = Vector3Normalize(
+            Vector3Subtract(targetPosition, rigidBody->position));
+
+        float towardVel = Vector3DotProduct(rigidBody->velocity, toTarget);
+        float minLaunchSpeed =
+            std::clamp(rigidBody->grappleWireLength * 0.25f, 2.0f, 9.0f);
+        float launchSpeed = std::max(towardVel, minLaunchSpeed);
+        rigidBody->velocity = Vector3Scale(toTarget, launchSpeed);
+        rigidBody->velocity.y += std::min(trajectoryHeight * 0.2f, 2.0f);
     }
 
     void StopGrapple(aot::character::Rigidbody *rigidBody,
                      float momentumMultiplier) {
         rigidBody->activeGrapple = false;
         rigidBody->grappleTarget = rigidBody->position;
-        rigidBody->velocity = Vector3Scale(rigidBody->velocity,
-                                           momentumMultiplier);
+        rigidBody->velocity =
+            Vector3Scale(rigidBody->velocity, momentumMultiplier);
         rigidBody->state = rigidBody->isGrounded
                                ? aot::character::MouvementState::Idle
                                : aot::character::MouvementState::Air;
     }
 
-    static void UpdateController(character::Controller &controller, float rot) {
+    static void UpdateController(character::Controller &controller, float yaw,
+                                 float pitch) {
         char sideway = (IsKeyDown(KEY_D) - IsKeyDown(KEY_A));
         char forward = (IsKeyDown(KEY_W) - IsKeyDown(KEY_S));
         controller.crouching = IsKeyDown(KEY_LEFT_CONTROL);
         controller.jumpPressed = IsKeyPressed(KEY_SPACE);
 
-        Vector3 front = (Vector3){sinf(rot), 0.f, cosf(rot)};
-        Vector3 right = (Vector3){cosf(-rot), 0.f, sinf(-rot)};
+        Vector3 right = (Vector3){cosf(-yaw), 0.f, sinf(-yaw)};
 
         Vector2 input = (Vector2){(float)sideway, (float)-forward};
 #if defined(NORMALIZE_INPUT)
@@ -75,61 +85,137 @@ namespace aot::physics {
             input = Vector2Normalize(input);
 #endif
 
+        Vector3 frontH = (Vector3){sinf(yaw), 0.f, cosf(yaw)};
         Vector3 desiredDir = (Vector3){
-            input.x * right.x + input.y * front.x,
+            input.x * right.x + input.y * frontH.x,
             0.0f,
-            input.x * right.z + input.y * front.z,
+            input.x * right.z + input.y * frontH.z,
+        };
+
+        float cp = cosf(pitch), sp = sinf(pitch);
+        Vector3 front3D = {sinf(yaw) * cp, sp, cosf(yaw) * cp};
+        Vector3 desiredDir3D = (Vector3){
+            input.x * right.x + input.y * front3D.x,
+            input.y * front3D.y,
+            input.x * right.z + input.y * front3D.z,
         };
 
         float delta = GetFrameTime();
         controller.dir =
             Vector3Lerp(controller.dir, desiredDir, CONTROL * delta);
+        controller.dir3D =
+            Vector3Lerp(controller.dir3D, desiredDir3D, CONTROL * delta);
     }
 
     static void ApplyControllerForces(character::Controller &controller,
-                                      character::Rigidbody &rigidBody,
-                                      float rot) {
-        (void)rot;
-
+                                      character::Rigidbody &rigidBody) {
         if (rigidBody.activeGrapple) {
-            if (controller.dir.x != 0.0f || controller.dir.z != 0.0f) {
-                rigidBody.velocity.x += controller.dir.x * 55.0f * GetFrameTime();
-                rigidBody.velocity.z += controller.dir.z * 55.0f * GetFrameTime();
+            if (IsKeyDown(KEY_SPACE)) {
+                float spd = Vector3Length(rigidBody.velocity);
+                if (spd > 0.5f)
+                    rigidBody.velocity =
+                        Vector3Scale(Vector3Normalize(rigidBody.velocity),
+                                     std::min(spd + 18.0f * GetFrameTime(),
+                                              rigidBody.grappleMaxSpeed));
+            }
+
+            float fwd = (float)(IsKeyDown(KEY_W) - IsKeyDown(KEY_S));
+            float lat = (float)(IsKeyDown(KEY_D) - IsKeyDown(KEY_A));
+
+            if (fwd != 0.0f || lat != 0.0f) {
+                Vector3 wireDir = Vector3Normalize(Vector3Subtract(
+                    rigidBody.grappleTarget, rigidBody.position));
+                const Vector3 worldUp = {0.0f, 1.0f, 0.0f};
+
+                float upR = Vector3DotProduct(worldUp, wireDir);
+                Vector3 tangUp = {-wireDir.x * upR, 1.0f - wireDir.y * upR,
+                                  -wireDir.z * upR};
+                float tuLen = Vector3Length(tangUp);
+                if (tuLen > 0.001f)
+                    tangUp = Vector3Scale(tangUp, 1.0f / tuLen);
+
+                Vector3 tangRight = Vector3CrossProduct(wireDir, worldUp);
+                float trLen = Vector3Length(tangRight);
+                if (trLen < 0.001f)
+                    tangRight = {1.0f, 0.0f, 0.0f};
+                else
+                    tangRight = Vector3Scale(tangRight, 1.0f / trLen);
+
+                Vector3 arcDir = Vector3Add(Vector3Scale(tangUp, fwd),
+                                            Vector3Scale(tangRight, lat));
+                float adLen = Vector3Length(arcDir);
+                if (adLen > 0.001f) {
+                    arcDir = Vector3Scale(arcDir, 1.0f / adLen);
+                    float steer = 40.0f * GetFrameTime();
+                    rigidBody.velocity.x += arcDir.x * steer;
+                    rigidBody.velocity.y += arcDir.y * steer;
+                    rigidBody.velocity.z += arcDir.z * steer;
+                    float spd = Vector3Length(rigidBody.velocity);
+                    if (spd > rigidBody.grappleMaxSpeed)
+                        rigidBody.velocity =
+                            Vector3Scale(Vector3Normalize(rigidBody.velocity),
+                                         rigidBody.grappleMaxSpeed);
+                }
             }
             return;
         }
 
-        if (rigidBody.isGrounded && controller.jumpPressed) {
-            rigidBody.state = aot::character::MouvementState::Air;
-            rigidBody.velocity.y = JUMP_FORCE;
-            rigidBody.isGrounded = false;
+        if (rigidBody.isGrounded) {
+            if (controller.jumpPressed) {
+                rigidBody.state = aot::character::MouvementState::Air;
+                rigidBody.velocity.y = JUMP_FORCE;
+                rigidBody.isGrounded = false;
+            }
+            Vector3 hvel = {rigidBody.velocity.x * FRICTION, 0.0f,
+                            rigidBody.velocity.z * FRICTION};
+            if (Vector3Length(hvel) < MAX_SPEED * 0.01f)
+                hvel = {0};
+            float speed = Vector3DotProduct(hvel, controller.dir);
+
+            if (controller.crouching)
+                rigidBody.state = aot::character::MouvementState::Crouching;
+            else if (controller.dir.x != 0.0f || controller.dir.z != 0.0f)
+                rigidBody.state = aot::character::MouvementState::Running;
+            else
+                rigidBody.state = aot::character::MouvementState::Walking;
+
+            float maxSpeed = controller.crouching ? CROUCH_SPEED : MAX_SPEED;
+            float accel =
+                Clamp(maxSpeed - speed, 0.f, MAX_ACCEL * GetFrameTime());
+            hvel.x += controller.dir.x * accel;
+            hvel.z += controller.dir.z * accel;
+            rigidBody.velocity.x = hvel.x;
+            rigidBody.velocity.z = hvel.z;
+            return;
         }
 
-        float decel = (rigidBody.isGrounded ? FRICTION : AIR_DRAG);
-        Vector3 hvel = {rigidBody.velocity.x * decel, 0.0f,
-                        rigidBody.velocity.z * decel};
+        rigidBody.state = aot::character::MouvementState::Air;
 
-        float hvelLength = Vector3Length(hvel);
-        if (hvelLength < (MAX_SPEED * 0.01f))
-            hvel = (Vector3){0};
-
-        float speed = Vector3DotProduct(hvel, controller.dir);
-
-        if (controller.crouching) {
-            rigidBody.state = aot::character::MouvementState::Crouching;
-        } else if (controller.dir.x != 0.0f || controller.dir.z != 0.0f) {
-            rigidBody.state = aot::character::MouvementState::Running;
-        } else {
-            rigidBody.state = aot::character::MouvementState::Walking;
+        if (IsKeyDown(KEY_SPACE)) {
+            float spd = Vector3Length(rigidBody.velocity);
+            if (spd > 0.5f) {
+                float boost = 18.0f * GetFrameTime();
+                rigidBody.velocity = Vector3Scale(
+                    Vector3Normalize(rigidBody.velocity),
+                    std::min(spd + boost, rigidBody.grappleMaxSpeed));
+            }
         }
 
-        float maxSpeed = (controller.crouching ? CROUCH_SPEED : MAX_SPEED);
-        float accel = Clamp(maxSpeed - speed, 0.f, MAX_ACCEL * GetFrameTime());
-        hvel.x += controller.dir.x * accel;
-        hvel.z += controller.dir.z * accel;
+        const float AIR_ACCEL = 65.0f * GetFrameTime();
+        rigidBody.velocity.x += controller.dir3D.x * AIR_ACCEL;
+        rigidBody.velocity.y += controller.dir3D.y * AIR_ACCEL;
+        rigidBody.velocity.z += controller.dir3D.z * AIR_ACCEL;
 
-        rigidBody.velocity.x = hvel.x;
-        rigidBody.velocity.z = hvel.z;
+        if (!IsKeyDown(KEY_SPACE)) {
+            rigidBody.velocity.x *= AIR_DRAG;
+            rigidBody.velocity.z *= AIR_DRAG;
+        }
+
+        float spd = Vector3Length(rigidBody.velocity);
+        if (spd > rigidBody.grappleMaxSpeed)
+            rigidBody.velocity =
+                Vector3Scale(Vector3Normalize(rigidBody.velocity),
+                             rigidBody.grappleMaxSpeed);
     }
 
     void UpdateControllers(Engine::Core &core) {
@@ -138,16 +224,18 @@ namespace aot::physics {
         auto view = registry.view<character::Controller, character::Rigidbody,
                                   Object::Component::Transform>();
 
-        float rot = 0.0f;
+        float yaw = 0.0f, pitch = 0.0f;
         if (cameraView.begin() != cameraView.end()) {
             auto cameraEntity = *cameraView.begin();
-            rot = cameraView.get<aot::camera::RaylibCamera>(cameraEntity)
-                      .lookRotation.x;
+            const auto &cam =
+                cameraView.get<aot::camera::RaylibCamera>(cameraEntity);
+            yaw = cam.lookRotation.x;
+            pitch = -cam.lookRotation.y;
         }
 
         view.each([&](auto &controller, auto &rigidBody, auto &) {
-            UpdateController(controller, rot);
-            ApplyControllerForces(controller, rigidBody, rot);
+            UpdateController(controller, yaw, pitch);
+            ApplyControllerForces(controller, rigidBody);
         });
     }
 
