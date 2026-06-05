@@ -42,7 +42,6 @@ namespace aot::plugin::raylib {
             const int screenHeight = 450;
             InitWindow(screenWidth, screenHeight, "Engine² x AOT");
             SetTargetFPS(60);
-            DisableCursor();
         });
 
         RegisterSystems<Engine::Scheduler::Update>([](Engine::Core &core) {

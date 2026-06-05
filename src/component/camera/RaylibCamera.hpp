@@ -33,6 +33,7 @@ namespace aot::camera {
         float walkLerp = 0.0f;
         float headTimer = 0.0f;
         Vector2 sensitivity = {0.001f, 0.001f};
+        float tpsDistance = 5.0f;
     };
 }  // namespace aot::camera
 

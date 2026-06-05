@@ -102,7 +102,8 @@ namespace aot::physics {
 
     static void StartGrappling(Engine::Core &core, aot::gear::Hook &hook,
                                aot::physics::LineRenderer *grappleLine,
-                               const Camera &camera, Engine::Entity &entity) {
+                               const Camera &camera, Engine::Entity &entity,
+                               bool isTPS) {
         if (hook.grapplingCdTimer > 0.0f)
             return;
 
@@ -110,8 +111,24 @@ namespace aot::physics {
         hook.grappleDelayTimer = hook.grappleTimeDelay;
 
         Vector3 startPoint = GetGuntipPosition(camera, entity);
-        Vector3 direction =
-            Vector3Normalize(Vector3Subtract(camera.target, camera.position));
+        Vector3 direction;
+        if (isTPS) {
+            Ray mouseRay = GetMouseRay(GetMousePosition(), camera);
+            auto aimHit = aot::physics::Raycast(
+                mouseRay.position, mouseRay.direction, hook.maxGrapDistance,
+                static_cast<uint32_t>(aot::physics::ColliderTag::Grappleable),
+                &core);
+            Vector3 aimTarget =
+                aimHit.hit ? aimHit.point
+                           : Vector3Add(mouseRay.position,
+                                        Vector3Scale(mouseRay.direction,
+                                                     hook.maxGrapDistance));
+            direction =
+                Vector3Normalize(Vector3Subtract(aimTarget, startPoint));
+        } else {
+            direction = Vector3Normalize(
+                Vector3Subtract(camera.target, camera.position));
+        }
 
         hook.grappleHit = AimAssistRaycast(
             startPoint, direction, hook.maxGrapDistance,
@@ -132,8 +149,10 @@ namespace aot::physics {
             return;
 
         auto cameraEntity = *cameraView.begin();
-        const Camera camera =
-            cameraView.get<aot::camera::RaylibCamera>(cameraEntity).camera;
+        const auto &raylibCam =
+            cameraView.get<aot::camera::RaylibCamera>(cameraEntity);
+        const Camera camera = raylibCam.camera;
+        const bool isTPS = raylibCam.tpsDistance > 0.0f;
 
         auto view = registry.view<aot::gear::Hook>();
 
@@ -171,7 +190,7 @@ namespace aot::physics {
 
             if (IsKeyPressed(hook.key) && !hook.grappling) {
                 Log::Info("Starting grapple");
-                StartGrappling(core, hook, grappleLine, camera, entity);
+                StartGrappling(core, hook, grappleLine, camera, entity, isTPS);
             }
             if (IsKeyReleased(hook.key) && hook.grappling) {
                 StopGrappling(hook, rigidBody, grappleLine, 1.12f);

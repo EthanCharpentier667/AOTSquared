@@ -84,6 +84,10 @@ namespace aot::plugin::scene {
 
     Engine::Entity TestScene::SetupPlayer(Engine::Core &core) {
         auto player = core.CreateEntity();
+
+        player.AddComponent<aot::geometry::CubeMesh>(Vector3{4.0f, 6.0f, 4.0f},
+                                                     GREEN);
+
         auto &playerTransform =
             player.AddComponent<Object::Component::Transform>();
         auto &rigidBody = player.AddComponent<aot::character::Rigidbody>();

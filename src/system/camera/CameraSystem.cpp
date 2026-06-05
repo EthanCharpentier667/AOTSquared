@@ -11,6 +11,46 @@
 #include "Object.hpp"
 #include "component/camera/RaylibCamera.hpp"
 
+static constexpr float TPS_SCROLL_SPEED = 1.5f;
+static constexpr float FPS_THRESHOLD = 0.3f;
+static constexpr float TPS_MAX_DISTANCE = 20.0f;
+
+static void UpdateCameraThirdPerson(
+    Camera *camera, const Object::Component::Transform &transform,
+    aot::camera::RaylibCamera &rigCamera) {
+    const Vector3 up = {0.0f, 1.0f, 0.0f};
+    const Vector3 targetOffset = {0.0f, 0.0f, -1.0f};
+
+    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+        Vector2 mouseDelta = GetMouseDelta();
+        rigCamera.lookRotation.x -= mouseDelta.x * rigCamera.sensitivity.x;
+        rigCamera.lookRotation.y += mouseDelta.y * rigCamera.sensitivity.y;
+        rigCamera.lookRotation.y = Clamp(rigCamera.lookRotation.y, -1.3f, 1.3f);
+    }
+
+    Vector3 yaw =
+        Vector3RotateByAxisAngle(targetOffset, up, rigCamera.lookRotation.x);
+
+    float pitchAngle =
+        Clamp(-rigCamera.lookRotation.y, -0.3f, PI / 2.0f - 0.01f);
+    float horizontalDist = rigCamera.tpsDistance * cosf(pitchAngle);
+    float verticalDist = rigCamera.tpsDistance * sinf(pitchAngle);
+
+    Vector3 headPos = {
+        transform.GetPosition().x,
+        transform.GetPosition().y + BOTTOM_HEIGHT + STAND_HEIGHT,
+        transform.GetPosition().z,
+    };
+
+    camera->position = {
+        headPos.x - yaw.x * horizontalDist,
+        headPos.y + verticalDist,
+        headPos.z - yaw.z * horizontalDist,
+    };
+    camera->target = headPos;
+    camera->up = up;
+}
+
 static void UpdateCameraFPS(Camera *camera,
                             const Object::Component::Transform &transform,
                             aot::camera::RaylibCamera &rigCamera) {
@@ -70,7 +110,31 @@ void CameraSystem(Engine::Core &core) {
         registry
             .view<aot::camera::RaylibCamera, Object::Component::Transform>();
 
+    float scroll = GetMouseWheelMove();
+    static bool s_cursorLocked = false;
+
     cameraView.each([&](auto &raylibCamera, auto &transform) {
-        UpdateCameraFPS(&raylibCamera.camera, transform, raylibCamera);
+        raylibCamera.tpsDistance -= scroll * TPS_SCROLL_SPEED;
+        raylibCamera.tpsDistance =
+            Clamp(raylibCamera.tpsDistance, 0.0f, TPS_MAX_DISTANCE);
+
+        if (raylibCamera.tpsDistance <= FPS_THRESHOLD)
+            raylibCamera.tpsDistance = 0.0f;
+
+        bool isFPS = raylibCamera.tpsDistance == 0.0f;
+
+        if (isFPS && !s_cursorLocked) {
+            DisableCursor();
+            s_cursorLocked = true;
+        } else if (!isFPS && s_cursorLocked) {
+            EnableCursor();
+            s_cursorLocked = false;
+        }
+
+        if (isFPS)
+            UpdateCameraFPS(&raylibCamera.camera, transform, raylibCamera);
+        else
+            UpdateCameraThirdPerson(&raylibCamera.camera, transform,
+                                    raylibCamera);
     });
 }
