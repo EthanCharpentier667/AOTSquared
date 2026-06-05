@@ -39,6 +39,7 @@ namespace aot::physics {
                 StopGrapple(&rigidBody, 1.0f);
                 return;
             }
+
             if (distance >= rigidBody.grappleWireLength && dotVelWire < 0.0f) {
                 rigidBody.velocity.x -= wireDir.x * dotVelWire;
                 rigidBody.velocity.y -= wireDir.y * dotVelWire;
@@ -46,18 +47,19 @@ namespace aot::physics {
                 dotVelWire = 0.0f;
             }
 
-            rigidBody.velocity.x +=
-                wireDir.x * rigidBody.grapplePullStrength * delta;
-            rigidBody.velocity.y +=
-                wireDir.y * rigidBody.grapplePullStrength * delta;
-            rigidBody.velocity.z +=
-                wireDir.z * rigidBody.grapplePullStrength * delta;
+            rigidBody.grappleWireLength =
+                std::max(rigidBody.grappleWireLength - 4.0f * delta,
+                         rigidBody.grappleStopDistance + 0.5f);
 
+            rigidBody.velocity.x += wireDir.x * 25.0f * delta;
+            rigidBody.velocity.y += wireDir.y * 25.0f * delta;
+            rigidBody.velocity.z += wireDir.z * 25.0f * delta;
+
+            const float SWING_MAX_SPEED = 30.0f;
             float currentSpeed = Vector3Length(rigidBody.velocity);
-            if (currentSpeed > rigidBody.grappleMaxSpeed) {
-                rigidBody.velocity =
-                    Vector3Scale(Vector3Normalize(rigidBody.velocity),
-                                 rigidBody.grappleMaxSpeed);
+            if (currentSpeed > SWING_MAX_SPEED) {
+                rigidBody.velocity = Vector3Scale(
+                    Vector3Normalize(rigidBody.velocity), SWING_MAX_SPEED);
             }
 
             Vector3 nextPos = {

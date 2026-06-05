@@ -71,11 +71,19 @@ namespace aot::physics {
     }
 
     static void UpdateController(character::Controller &controller, float yaw,
-                                 float pitch) {
+                                 float pitch, bool isGrappling) {
         char sideway = (IsKeyDown(KEY_D) - IsKeyDown(KEY_A));
         char forward = (IsKeyDown(KEY_W) - IsKeyDown(KEY_S));
         controller.crouching = IsKeyDown(KEY_LEFT_CONTROL);
         controller.jumpPressed = IsKeyPressed(KEY_SPACE);
+
+        controller.doubleSpacePressed = false;
+        if (controller.jumpPressed) {
+            float now = (float)GetTime();
+            if (now - controller.lastSpacePressTime < 0.3f)
+                controller.doubleSpacePressed = true;
+            controller.lastSpacePressTime = now;
+        }
 
         Vector3 right = (Vector3){cosf(-yaw), 0.f, sinf(-yaw)};
 
@@ -94,6 +102,7 @@ namespace aot::physics {
 
         float cp = cosf(pitch), sp = sinf(pitch);
         Vector3 front3D = {sinf(yaw) * cp, sp, cosf(yaw) * cp};
+        controller.lookDir = {-sinf(yaw) * cp, sp, -cosf(yaw) * cp};
         Vector3 desiredDir3D = (Vector3){
             input.x * right.x + input.y * front3D.x,
             input.y * front3D.y,
@@ -109,6 +118,15 @@ namespace aot::physics {
 
     static void ApplyControllerForces(character::Controller &controller,
                                       character::Rigidbody &rigidBody) {
+        if (controller.doubleSpacePressed) {
+            if (rigidBody.activeGrapple)
+                StopGrapple(&rigidBody, 0.0f);
+            rigidBody.velocity = Vector3Scale(controller.lookDir, 55.0f);
+            rigidBody.isGrounded = false;
+            rigidBody.state = aot::character::MouvementState::Air;
+            return;
+        }
+
         if (rigidBody.activeGrapple) {
             if (IsKeyDown(KEY_SPACE)) {
                 float spd = Vector3Length(rigidBody.velocity);
@@ -234,7 +252,7 @@ namespace aot::physics {
         }
 
         view.each([&](auto &controller, auto &rigidBody, auto &) {
-            UpdateController(controller, yaw, pitch);
+            UpdateController(controller, yaw, pitch, rigidBody.activeGrapple);
             ApplyControllerForces(controller, rigidBody);
         });
     }
