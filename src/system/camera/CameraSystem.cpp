@@ -21,10 +21,10 @@ static void UpdateCameraThirdPerson(
     const Vector3 up = {0.0f, 1.0f, 0.0f};
     const Vector3 targetOffset = {0.0f, 0.0f, -1.0f};
 
-    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+    if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
         Vector2 mouseDelta = GetMouseDelta();
         rigCamera.lookRotation.x -= mouseDelta.x * rigCamera.sensitivity.x;
-        rigCamera.lookRotation.y += mouseDelta.y * rigCamera.sensitivity.y;
+        rigCamera.lookRotation.y -= mouseDelta.y * rigCamera.sensitivity.y;
         rigCamera.lookRotation.y = Clamp(rigCamera.lookRotation.y, -1.3f, 1.3f);
     }
 
@@ -38,7 +38,7 @@ static void UpdateCameraThirdPerson(
 
     Vector3 headPos = {
         transform.GetPosition().x,
-        transform.GetPosition().y + BOTTOM_HEIGHT + STAND_HEIGHT,
+        transform.GetPosition().y + PLAYER_CENTER_HEIGHT,
         transform.GetPosition().z,
     };
 
@@ -95,7 +95,7 @@ static void UpdateCameraFPS(Camera *camera,
 
     Vector3 basePosition = {
         transform.GetPosition().x,
-        transform.GetPosition().y + BOTTOM_HEIGHT + rigCamera.headLerp,
+        transform.GetPosition().y + rigCamera.headLerp,
         transform.GetPosition().z,
     };
 

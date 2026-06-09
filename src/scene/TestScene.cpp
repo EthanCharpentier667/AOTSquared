@@ -56,21 +56,17 @@ namespace aot::plugin::scene {
             cameraEntity.AddComponent<Object::Component::Transform>();
         auto &cameraOffset =
             cameraEntity.AddComponent<aot::physics::ChildOffset>();
-        cameraOffset.positionOffset = {0.0f, BOTTOM_HEIGHT + STAND_HEIGHT,
-                                       0.0f};
-        cameraTransform.SetPosition(
-            {playerTransform.GetPosition().x,
-             playerTransform.GetPosition().y + BOTTOM_HEIGHT + STAND_HEIGHT,
-             playerTransform.GetPosition().z});
+        // The camera entity tracks the player's feet; the CameraSystem adds the
+        // eye/pivot height itself, so no extra vertical offset here.
+        cameraOffset.positionOffset = {0.0f, 0.0f, 0.0f};
+        cameraTransform.SetPosition(playerTransform.GetPosition());
 
         Camera cam = {
             .position = {playerTransform.GetPosition().x,
-                         playerTransform.GetPosition().y + BOTTOM_HEIGHT +
-                             STAND_HEIGHT,
+                         playerTransform.GetPosition().y + PLAYER_EYE_HEIGHT,
                          playerTransform.GetPosition().z},
             .target = {playerTransform.GetPosition().x,
-                       playerTransform.GetPosition().y + BOTTOM_HEIGHT +
-                           STAND_HEIGHT,
+                       playerTransform.GetPosition().y + PLAYER_EYE_HEIGHT,
                        playerTransform.GetPosition().z - 1.0f},
             .up = {0.0f, 1.0f, 0.0f},
             .fovy = 60.0f,
@@ -78,15 +74,18 @@ namespace aot::plugin::scene {
         };
         auto &raylibCamera =
             cameraEntity.AddComponent<aot::camera::RaylibCamera>(cam);
-        raylibCamera.headLerp = STAND_HEIGHT;
+        raylibCamera.headLerp = PLAYER_EYE_HEIGHT;
         return cameraEntity;
     }
 
     Engine::Entity TestScene::SetupPlayer(Engine::Core &core) {
         auto player = core.CreateEntity();
 
-        player.AddComponent<aot::geometry::CubeMesh>(Vector3{4.0f, 6.0f, 4.0f},
-                                                     GREEN);
+
+        auto &playerMesh = player.AddComponent<aot::geometry::CubeMesh>(
+            Vector3{PLAYER_RADIUS * 2.0f, PLAYER_HEIGHT, PLAYER_RADIUS * 2.0f},
+            GREEN);
+        playerMesh.offset = {0.0f, PLAYER_HEIGHT / 2.0f, 0.0f};
 
         auto &playerTransform =
             player.AddComponent<Object::Component::Transform>();
@@ -95,10 +94,10 @@ namespace aot::plugin::scene {
 
         auto &playerCollider =
             player.AddComponent<aot::physics::CapsuleCollider>(false);
-        playerCollider.radius = 0.5f;
-        playerCollider.height = STAND_HEIGHT + (BOTTOM_HEIGHT * 2.5f);
+        playerCollider.radius = PLAYER_RADIUS;
+        playerCollider.height = PLAYER_HEIGHT;
         playerCollider.tag = aot::physics::ColliderTag::Player;
-        playerCollider.offset = {0.0f, playerCollider.height / 2.0f, 0.0f};
+        playerCollider.offset = {0.0f, 0.0f, 0.0f};
 
         // Setup right hook and guntip
         auto rightGuntip = core.CreateEntity();
@@ -106,9 +105,11 @@ namespace aot::plugin::scene {
 
         auto &rightGuntipTransform =
             rightGuntip.AddComponent<Object::Component::Transform>();
-        rightGuntipTransform.SetPosition({rigidBody.position.x + 1.0f,
-                                          rigidBody.position.y - 0.5f,
-                                          rigidBody.position.z});
+            
+        rightGuntipTransform.SetPosition(
+            {rigidBody.position.x + PLAYER_RADIUS,
+             rigidBody.position.y + PLAYER_CENTER_HEIGHT,
+             rigidBody.position.z});
         aot::physics::ChildOffsetUils::makeChildFollowParent(rightGuntip,
                                                              player);
 
@@ -121,9 +122,10 @@ namespace aot::plugin::scene {
 
         auto &leftGuntipTransform =
             leftGuntip.AddComponent<Object::Component::Transform>();
-        leftGuntipTransform.SetPosition({rigidBody.position.x - 1.0f,
-                                         rigidBody.position.y - 0.5f,
-                                         rigidBody.position.z});
+        leftGuntipTransform.SetPosition(
+            {rigidBody.position.x - PLAYER_RADIUS,
+             rigidBody.position.y + PLAYER_CENTER_HEIGHT,
+             rigidBody.position.z});
         aot::physics::ChildOffsetUils::makeChildFollowParent(leftGuntip,
                                                              player);
 

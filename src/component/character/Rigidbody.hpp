@@ -20,7 +20,7 @@ namespace aot::character {
 
         Vector3 grappleTarget = {0.0f, 0.0f, 0.0f};
         float grapplePullStrength = 38.0f;
-        float grappleMaxSpeed = 55.0f;
+        float grappleMaxSpeed = 255.0f;
         float grappleStopDistance = 1.5f;
         float grappleWireLength = 0.0f;
     };

@@ -16,7 +16,9 @@ void CubeMeshSystem(Engine::Core &core) {
         registry.view<aot::geometry::CubeMesh, Object::Component::Transform>();
 
     cubeView.each([](auto &cube, auto &transform) {
-        DrawCubeV(aot::RaylibMaths::toRayVector3(transform.GetPosition()),
-                  cube.size, cube.color);
+        DrawCubeV(
+            Vector3Add(aot::RaylibMaths::toRayVector3(transform.GetPosition()),
+                       cube.offset),
+            cube.size, cube.color);
     });
 }

@@ -189,7 +189,6 @@ namespace aot::physics {
             }
 
             if (IsKeyPressed(hook.key) && !hook.grappling) {
-                Log::Info("Starting grapple");
                 StartGrappling(core, hook, grappleLine, camera, entity, isTPS);
             }
             if (IsKeyReleased(hook.key) && hook.grappling) {

@@ -10,12 +10,35 @@
 #include "Object.hpp"
 #include "component/camera/RaylibCamera.hpp"
 #include "component/character/Rigidbody.hpp"
+#include "component/physics/Raycast.hpp"
 #include "glm/gtc/quaternion.hpp"
 #include "system/physics/ControllerSystem.hpp"
 
 namespace aot::physics {
+    static bool GroundCheck(const aot::character::Rigidbody &rigidBody,
+                            float delta, Engine::Core &core, float &groundY) {
+        const float rayStartUp = 0.3f;
+        const float fall =
+            rigidBody.velocity.y < 0.0f ? -rigidBody.velocity.y * delta : 0.0f;
+        const float maxDistance = rayStartUp + GROUND_CHECK_DISTANCE + fall;
+        const uint32_t mask =
+            static_cast<uint32_t>(aot::physics::ColliderTag::Ground) |
+            static_cast<uint32_t>(aot::physics::ColliderTag::Tower);
+
+        Vector3 origin = {rigidBody.position.x,
+                          rigidBody.position.y + rayStartUp,
+                          rigidBody.position.z};
+        aot::physics::RaycastHit hit = aot::physics::Raycast(
+            origin, {0.0f, -1.0f, 0.0f}, maxDistance, mask, &core);
+
+        if (hit.hit)
+            groundY = hit.point.y;
+        return hit.hit;
+    }
+
     static void UpdateRigidbody(aot::character::Rigidbody &rigidBody, float yaw,
-                                Object::Component::Transform &transform) {
+                                Object::Component::Transform &transform,
+                                Engine::Core &core) {
         float delta = GetFrameTime();
 
         if (rigidBody.activeGrapple) {
@@ -95,7 +118,15 @@ namespace aot::physics {
             return;
         }
 
-        if (!rigidBody.isGrounded) {
+        float groundY = rigidBody.position.y;
+        bool onGround = GroundCheck(rigidBody, delta, core, groundY);
+
+        if (onGround && rigidBody.velocity.y <= 0.01f) {
+            rigidBody.isGrounded = true;
+            rigidBody.velocity.y = 0.0f;
+            rigidBody.position.y = groundY;
+        } else {
+            rigidBody.isGrounded = false;
             rigidBody.state = aot::character::MouvementState::Air;
             rigidBody.velocity.y -= GRAVITY * delta;
         }
@@ -124,7 +155,7 @@ namespace aot::physics {
         }
 
         view.each([&](auto &rigidBody, auto &transform) {
-            UpdateRigidbody(rigidBody, yaw, transform);
+            UpdateRigidbody(rigidBody, yaw, transform, core);
         });
     }
 

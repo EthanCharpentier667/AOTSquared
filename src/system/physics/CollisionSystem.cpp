@@ -114,7 +114,6 @@ static void ApplyCollisionResponse(ColliderT &collider,
     rigidBody.position = Vector3Add(rigidBody.position, correction);
 
     if (correction.y > 0.0f) {
-        rigidBody.isGrounded = true;
         rigidBody.velocity.y = 0.0f;
     } else if (correction.y < 0.0f) {
         rigidBody.velocity.y = std::max(0.0f, rigidBody.velocity.y);

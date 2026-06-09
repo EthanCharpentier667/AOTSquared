@@ -133,7 +133,7 @@ namespace aot::physics {
                 if (spd > 0.5f)
                     rigidBody.velocity =
                         Vector3Scale(Vector3Normalize(rigidBody.velocity),
-                                     std::min(spd + 18.0f * GetFrameTime(),
+                                     std::min(spd + 50.0f * GetFrameTime(),
                                               rigidBody.grappleMaxSpeed));
             }
 
@@ -212,7 +212,7 @@ namespace aot::physics {
         if (IsKeyDown(KEY_SPACE)) {
             float spd = Vector3Length(rigidBody.velocity);
             if (spd > 0.5f) {
-                float boost = 18.0f * GetFrameTime();
+                float boost = 50.0f * GetFrameTime();
                 rigidBody.velocity = Vector3Scale(
                     Vector3Normalize(rigidBody.velocity),
                     std::min(spd + boost, rigidBody.grappleMaxSpeed));

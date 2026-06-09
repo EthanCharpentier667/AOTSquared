@@ -29,10 +29,10 @@ namespace aot::camera {
         Camera camera{0};
         Vector2 lookRotation = {0.0f, 0.0f};
         Vector2 lean = {0.0f, 0.0f};
-        float headLerp = STAND_HEIGHT;
+        float headLerp = PLAYER_EYE_HEIGHT;
         float walkLerp = 0.0f;
         float headTimer = 0.0f;
-        Vector2 sensitivity = {0.001f, 0.001f};
+        Vector2 sensitivity = {0.005f, 0.005f};
         float tpsDistance = 5.0f;
     };
 }  // namespace aot::camera
