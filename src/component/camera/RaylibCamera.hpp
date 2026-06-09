@@ -34,6 +34,7 @@ namespace aot::camera {
         float headTimer = 0.0f;
         Vector2 sensitivity = {0.005f, 0.005f};
         float tpsDistance = 5.0f;
+        Vector3 cameraForward = {0.0f, 0.0f, -1.0f};
     };
 }  // namespace aot::camera
 

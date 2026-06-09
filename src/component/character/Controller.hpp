@@ -11,5 +11,6 @@ namespace aot::character {
         bool jumpPressed = false;
         bool doubleSpacePressed = false;
         float lastSpacePressTime = -1.0f;
+        float doubleJumpCooldown = 0.0f;
     };
 }  // namespace aot::character

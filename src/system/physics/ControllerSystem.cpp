@@ -117,13 +117,19 @@ namespace aot::physics {
     }
 
     static void ApplyControllerForces(character::Controller &controller,
-                                      character::Rigidbody &rigidBody) {
-        if (controller.doubleSpacePressed) {
+                                      character::Rigidbody &rigidBody,
+                                      Vector3 cameraForward) {
+        if (controller.doubleJumpCooldown > 0.0f)
+            controller.doubleJumpCooldown -= GetFrameTime();
+
+        if (controller.doubleSpacePressed &&
+            controller.doubleJumpCooldown <= 0.0f) {
             if (rigidBody.activeGrapple)
                 StopGrapple(&rigidBody, 0.0f);
-            rigidBody.velocity = Vector3Scale(controller.lookDir, 55.0f);
+            rigidBody.velocity = Vector3Scale(cameraForward, 55.0f);
             rigidBody.isGrounded = false;
             rigidBody.state = aot::character::MouvementState::Air;
+            controller.doubleJumpCooldown = DOUBLE_JUMP_COOLDOWN;
             return;
         }
 
@@ -243,17 +249,19 @@ namespace aot::physics {
                                   Object::Component::Transform>();
 
         float yaw = 0.0f, pitch = 0.0f;
+        Vector3 camForward = {0.0f, 0.0f, -1.0f};
         if (cameraView.begin() != cameraView.end()) {
             auto cameraEntity = *cameraView.begin();
             const auto &cam =
                 cameraView.get<aot::camera::RaylibCamera>(cameraEntity);
             yaw = cam.lookRotation.x;
             pitch = -cam.lookRotation.y;
+            camForward = cam.cameraForward;
         }
 
         view.each([&](auto &controller, auto &rigidBody, auto &) {
             UpdateController(controller, yaw, pitch, rigidBody.activeGrapple);
-            ApplyControllerForces(controller, rigidBody);
+            ApplyControllerForces(controller, rigidBody, camForward);
         });
     }
 

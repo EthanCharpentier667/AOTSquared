@@ -136,5 +136,10 @@ void CameraSystem(Engine::Core &core) {
         else
             UpdateCameraThirdPerson(&raylibCamera.camera, transform,
                                     raylibCamera);
+
+        // Derive true forward from the actual camera state so both FPS and TPS
+        // give a consistent direction for things like double-jump.
+        raylibCamera.cameraForward = Vector3Normalize(Vector3Subtract(
+            raylibCamera.camera.target, raylibCamera.camera.position));
     });
 }

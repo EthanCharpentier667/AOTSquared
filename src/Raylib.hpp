@@ -22,6 +22,7 @@
 #define AIR_DRAG 0.98f
 // Responsiveness for turning movement direction to looked direction
 #define CONTROL 15.0f
+#define DOUBLE_JUMP_COOLDOWN 1.5f
 #define CROUCH_HEIGHT 0.0f
 #define STAND_HEIGHT 1.0f
 #define BOTTOM_HEIGHT 0.5f
